@@ -32,11 +32,19 @@ type
   RectClass=CLASS(ModelClass)
     H1,H2,V1,V2:Real;
     RA:RectAxisType;
-    n:VecRecord;
     constructor Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
   END;
+
+(*
+  RectAngleClass=class(ModelClass)
+    x1,x2,y1,y2,z1,z2:RectClass;
+    constructor Create(x_,y_,z_;p_,e_,c_:VecRecord;refl_:RefType);
+    function intersect(const r:RayRecord):real;override;
+    function GetNorm(x:VecRecord):VecRecord;override;
+  end;
+*)
 
   CameraRecord=RECORD
     o,d,cx,cy : VecRecord;
@@ -131,25 +139,25 @@ BEGIN
       result:=INF;
       if abs(r.d.z)<eps THEN exit;
       t:=(p.z-r.o.z)/r.d.z;
+      if t<eps then exit;//result is INF
       pt:=r.o+r.d*t;
       IF (pt.x<H2) and (pt.x>H1) and (pt.y<V2)and (pt.y>V1) THEN result:=t;
-      IF t<eps THEN t:=INF;
     end;(*xy*)
     xz:begin
       result:=INF;
       if abs(r.d.y)<eps THEN exit;
       t:=(p.y-r.o.y)/r.d.y;
+      if t<eps then exit;//result is INF
       pt:=r.o+r.d*t;
       IF (pt.x<H2) and (pt.x>H1) and (pt.z<V2)and (pt.z>V1) THEN result:=t;
-      IF t<eps THEN t:=INF;
     end;(*xz*)
     yz:begin
       result:=INF;
       if abs(r.d.y)<eps THEN exit;
       t:=(p.x-r.o.x)/r.d.x;
+      if t<eps then exit;//result is INF
       pt:=r.o+r.d*t;
       IF (pt.y<H2) and (pt.y>H1) and (pt.z<V2)and (pt.z>V1) THEN result:=t;
-      IF t<eps THEN t:=INF;
     end;(*yz*)
   END;(*case*)
 END;
@@ -177,7 +185,7 @@ begin
   mdl.add( sphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999, SPEC) );//Mirror
   mdl.add( sphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999, REFR) );//Glass
   mdl.add( sphereClass.Create(600, CreateVec(50,681.6-0.27,81.6),CreateVec(12,12,12),    ZeroVec,DIFF) );//Ligth
-  mdl.add( RectClass.Create(XZ,20,80,60,100,CreateVec(50,40,80), zeroVec,  CreateVec(0.25,0.75,0.25),DIFF) );
+  mdl.add( RectClass.Create(XY,20,80,40,79,CreateVec(50,55,80), zeroVec,  CreateVec(0.25,0.75,0.25),DIFF) );
 end;
 
 function intersect(const r:RayRecord;var t:real; var id:integer):boolean;
