@@ -37,14 +37,17 @@ type
     function GetNorm(x:VecRecord):VecRecord;override;
   END;
 
-(*
+
   RectAngleClass=class(ModelClass)
-    x1,x2,y1,y2,z1,z2:RectClass;
-    constructor Create(x_,y_,z_;p_,e_,c_:VecRecord;refl_:RefType);
-    function intersect(const r:RayRecord):real;override;
-    function GetNorm(x:VecRecord):VecRecord;override;
-  end;
+    RAary:array[0..5] of RectClass;
+    HitID:integer;
+    constructor Create(p1,p2,e_,c_:VecRecord;refl_:RefType);
+  function intersect(const r:RayRecord):real;override;
+(*
+  function GetNorm(x:VecRecord):VecRecord;override;
 *)
+  end;
+
 
   CameraRecord=RECORD
     o,d,cx,cy : VecRecord;
@@ -57,119 +60,150 @@ type
     FUNCTION Ray(x,y,sx,sy : INTEGER):RayRecord;
   END;
 
-PROCEDURE CameraRecord.Setup(o_,d_:VecRecord;w_,h_:INTEGER;ratio_,dist_:real);
-BEGIN
-  ratio:=ratio_;dist:=dist_;w:=w_;h:=h_;
-  o:=o_;d:=VecNorm(d_);
-  cx:=CreateVec(ratio*w_/h_,0,0);
-  cy:=VecNorm(cx/d_)*ratio;
-   samples:=DefaultSamples;
-END;
+  PROCEDURE CameraRecord.Setup(o_,d_:VecRecord;w_,h_:INTEGER;ratio_,dist_:real);
+  BEGIN
+    ratio:=ratio_;dist:=dist_;w:=w_;h:=h_;
+    o:=o_;d:=VecNorm(d_);
+    cx:=CreateVec(ratio*w_/h_,0,0);
+    cy:=VecNorm(cx/d_)*ratio;
+    samples:=DefaultSamples;
+  END;
 
-PROCEDURE CameraRecord.SetSamples(sam :INTEGER );
-BEGIN
-   samples:=sam;
-END;
+  PROCEDURE CameraRecord.SetSamples(sam :INTEGER );
+  BEGIN
+    samples:=sam;
+  END;
 
-FUNCTION CameraRecord.Ray(x,y,sx,sy:INTEGER):RayRecord;
-VAR
-  r1,r2,dx,dy:real;
-  td:VecRecord;
-BEGIN
-  r1:=2*random;
-  IF r1<1 THEN dx:=sqrt(r1)-1 ELSE dx:=1-sqrt(2-r1);
-  r2:=2*random;
-  IF (r2 < 1) THEN dy := sqrt(r2)-1 ELSE dy := 1-sqrt(2-r2);
-  td:= cy*(((sy + 0.5 + dy)/2 + (h-y-1))/h - 0.5)+cx*(((sx + 0.5 + dx)/2 + x)/w - 0.5)+d;
-  td:=VecNorm(td);
-  result.o:= td*dist+ o;
-  result.d := td;
-END;
+  FUNCTION CameraRecord.Ray(x,y,sx,sy:INTEGER):RayRecord;
+  VAR
+    r1,r2,dx,dy:real;
+    td:VecRecord;
+  BEGIN
+    r1:=2*random;
+    IF r1<1 THEN dx:=sqrt(r1)-1 ELSE dx:=1-sqrt(2-r1);
+    r2:=2*random;
+    IF (r2 < 1) THEN dy := sqrt(r2)-1 ELSE dy := 1-sqrt(2-r2);
+    td:= cy*(((sy + 0.5 + dy)/2 + (h-y-1))/h - 0.5)+cx*(((sx + 0.5 + dx)/2 + x)/w - 0.5)+d;
+    td:=VecNorm(td);
+    result.o:= td*dist+ o;
+    result.d := td;
+  END;
 
 
   
-constructor ModelClass.Create(p_,e_,c_:VecRecord;refl_:RefType);
-begin
-  p:=p_;e:=e_;c:=c_;refl:=refl_;IF VecSQR(e)>0 THEN isLight:=TRUE ELSE isLight:=FALSE;
-END;
-constructor SphereClass.Create(rad_:real;p_,e_,c_:VecRecord;refl_:RefType);
-begin
-  rad:=rad_;rad2:=rad*rad; inherited create(p_,e_,c_,refl_);
-end;
-function SphereClass.intersect(const r:RayRecord):real;
-var
-  op:VecRecord;
-  t,b,det:real;
-begin
-  op:=p-r.o;
-  t:=eps;b:=op*r.d;
-  det:=b*b-op*op+rad*rad;
-  IF det<0 THEN 
-    result:=INF
-  ELSE BEGIN
-    det:=sqrt(det); t:=b-det;
-    IF t>eps then 
-      result:=t
-    ELSE BEGIN
-      t:=b+det;
-      if t>eps then 
-        result:=t
-      else
-        result:=INF;
-    END;
+  constructor ModelClass.Create(p_,e_,c_:VecRecord;refl_:RefType);
+  begin
+    p:=p_;e:=e_;c:=c_;refl:=refl_;IF VecSQR(e)>0 THEN isLight:=TRUE ELSE isLight:=FALSE;
   END;
-end;
-function SphereClass.GetNorm(x:VecRecord):VecRecord;
-BEGIN
-  result:=VecNorm(x-p)
-END;
-
-constructor RectClass.Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
-BEGIN
-  RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;inherited create(p_,e_,c_,refl_);
-END;
-function RectClass.intersect(const r:RayRecord):real;
-var
-  t:real;
-  pt:VecRecord;
-BEGIN
-(**光線と平行に近い場合の処理が必要だが・・・**)
-  case RA OF
-    xy:begin
-      result:=INF;
-      if abs(r.d.z)<eps THEN exit;
-      t:=(p.z-r.o.z)/r.d.z;
-      if t<eps then exit;//result is INF
-      pt:=r.o+r.d*t;
-      IF (pt.x<H2) and (pt.x>H1) and (pt.y<V2)and (pt.y>V1) THEN result:=t;
-    end;(*xy*)
-    xz:begin
-      result:=INF;
-      if abs(r.d.y)<eps THEN exit;
-      t:=(p.y-r.o.y)/r.d.y;
-      if t<eps then exit;//result is INF
-      pt:=r.o+r.d*t;
-      IF (pt.x<H2) and (pt.x>H1) and (pt.z<V2)and (pt.z>V1) THEN result:=t;
-    end;(*xz*)
-    yz:begin
-      result:=INF;
-      if abs(r.d.y)<eps THEN exit;
-      t:=(p.x-r.o.x)/r.d.x;
-      if t<eps then exit;//result is INF
-      pt:=r.o+r.d*t;
-      IF (pt.y<H2) and (pt.y>H1) and (pt.z<V2)and (pt.z>V1) THEN result:=t;
-    end;(*yz*)
-  END;(*case*)
-END;
-
-function RectClass.GetNorm(x:VecRecord):VecRecord;
-begin
-  case RA of
-    xy:result:=CreateVec(0,0,1);
-    xz:result:=CreateVec(0,1,0);
-    yz:result:=CreateVec(1,0,0);
+  constructor SphereClass.Create(rad_:real;p_,e_,c_:VecRecord;refl_:RefType);
+  begin
+    rad:=rad_;rad2:=rad*rad; inherited create(p_,e_,c_,refl_);
   end;
+  function SphereClass.intersect(const r:RayRecord):real;
+  var
+    op:VecRecord;
+    t,b,det:real;
+  begin
+    op:=p-r.o;
+    t:=eps;b:=op*r.d;
+    det:=b*b-op*op+rad*rad;
+    IF det<0 THEN 
+      result:=INF
+    ELSE BEGIN
+      det:=sqrt(det); t:=b-det;
+      IF t>eps then 
+	result:=t
+      ELSE BEGIN
+	t:=b+det;
+	if t>eps then 
+          result:=t
+	else
+          result:=INF;
+      END;
+    END;
+  end;
+  function SphereClass.GetNorm(x:VecRecord):VecRecord;
+  BEGIN
+    result:=VecNorm(x-p)
+  END;
+
+  constructor RectClass.Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
+  BEGIN
+    RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;inherited create(p_,e_,c_,refl_);
+  END;
+  function RectClass.intersect(const r:RayRecord):real;
+  var
+    t:real;
+    pt:VecRecord;
+  BEGIN
+    (**光線と平行に近い場合の処理が必要だが・・・**)
+    case RA OF
+      xy:begin
+	   result:=INF;
+	   if abs(r.d.z)<eps THEN exit;
+	   t:=(p.z-r.o.z)/r.d.z;
+	   if t<eps then exit;//result is INF
+	   pt:=r.o+r.d*t;
+	   IF (pt.x<H2) and (pt.x>H1) and (pt.y<V2)and (pt.y>V1) THEN result:=t;
+	 end;(*xy*)
+      xz:begin
+	   result:=INF;
+	   if abs(r.d.y)<eps THEN exit;
+	   t:=(p.y-r.o.y)/r.d.y;
+	   if t<eps then exit;//result is INF
+	   pt:=r.o+r.d*t;
+	   IF (pt.x<H2) and (pt.x>H1) and (pt.z<V2)and (pt.z>V1) THEN result:=t;
+	 end;(*xz*)
+      yz:begin
+	   result:=INF;
+	   if abs(r.d.y)<eps THEN exit;
+	   t:=(p.x-r.o.x)/r.d.x;
+	   if t<eps then exit;//result is INF
+	   pt:=r.o+r.d*t;
+	   IF (pt.y<H2) and (pt.y>H1) and (pt.z<V2)and (pt.z>V1) THEN result:=t;
+	 end;(*yz*)
+    END;(*case*)
+  END;
+
+  function RectClass.GetNorm(x:VecRecord):VecRecord;
+  begin
+    case RA of
+      xy:result:=CreateVec(0,0,1);
+      xz:result:=CreateVec(0,1,0);
+      yz:result:=CreateVec(1,0,0);
+    end;
+  end;
+
+constructor RectAngleClass.Create(p1,p2,e_,c_:VecRecord;refl_:RefType);
+begin
+  (*xy*)
+  RAary[0]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p1,e_,c_,refl_);
+  RAary[1]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p2,e_,c_,refl_);
+  (*xz*)
+  RAary[2]:=RectClass.Create(XZ,p1.x,p2.x,p1.z,p2.z,p1,e_,e_,refl_);
+  RAary[3]:=RectClass.Create(XZ,p1.x,p2.x,p1.z,p2.z,p2,e_,e_,refl_);
+  (*YZ*)
+  RAary[4]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p1,e_,e_,refl_);
+  RAary[5]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p2,e_,e_,refl_);  
 end;
+
+function RectAngleClass.intersect(const r:RayRecord):real;
+var
+  i:integer;
+  d,t:real;
+begin
+  t:=INF;HitID:=-1;
+  for i:=0 to 5 do begin
+    d:=RAary[i].intersect(r);
+    if d<t THEN BEGIN
+      t:=d;
+      HitID:=i;
+    END;
+  end;
+  result:=t;
+end;
+ 
+
 
 var
   mdl:TList;
