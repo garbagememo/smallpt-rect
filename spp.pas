@@ -178,11 +178,11 @@ begin
   RAary[0]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p1,e_,c_,refl_);
   RAary[1]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p2,e_,c_,refl_);
   (*xz*)
-  RAary[2]:=RectClass.Create(XZ,p1.x,p2.x,p1.z,p2.z,p1,e_,e_,refl_);
-  RAary[3]:=RectClass.Create(XZ,p1.x,p2.x,p1.z,p2.z,p2,e_,e_,refl_);
+  RAary[2]:=RectClass.Create(XZ,p1.x,p2.x,p1.z,p2.z,p1,e_,c_,refl_);
+  RAary[3]:=RectClass.Create(XZ,p1.x,p2.x,p1.z,p2.z,p2,e_,c_,refl_);
   (*YZ*)
-  RAary[4]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p1,e_,e_,refl_);
-  RAary[5]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p2,e_,e_,refl_);  
+  RAary[4]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p1,e_,c_,refl_);
+  RAary[5]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p2,e_,c_,refl_);  
 end;
 
 function RectAngleClass.intersect(const r:RayRecord):real;
@@ -203,7 +203,7 @@ end;
 
 function RectAngleClass.GetNorm(x:VecRecord):VecRecord;
 BEGIN
-  result:=RAary[HitID].GetNorm(x)
+  result:=RAary[HitID].GetNorm(x);
 END;
 
 var
