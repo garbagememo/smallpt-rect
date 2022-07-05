@@ -43,9 +43,7 @@ type
     HitID:integer;
     constructor Create(p1,p2,e_,c_:VecRecord;refl_:RefType);
   function intersect(const r:RayRecord):real;override;
-(*
   function GetNorm(x:VecRecord):VecRecord;override;
-*)
   end;
 
 
@@ -202,8 +200,11 @@ begin
   end;
   result:=t;
 end;
- 
 
+function RectAngleClass.GetNorm(x:VecRecord):VecRecord;
+BEGIN
+  result:=RAary[HitID].GetNorm(x)
+END;
 
 var
   mdl:TList;
@@ -219,7 +220,9 @@ begin
   mdl.add( sphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999, SPEC) );//Mirror
   mdl.add( sphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999, REFR) );//Glass
   mdl.add( sphereClass.Create(600, CreateVec(50,681.6-0.27,81.6),CreateVec(12,12,12),    ZeroVec,DIFF) );//Ligth
-  mdl.add( RectClass.Create(XY,20,80,40,79,CreateVec(50,55,80), zeroVec,  CreateVec(0.25,0.75,0.25),DIFF) );
+//  mdl.add( RectClass.Create(XY,20,80,40,79,CreateVec(50,55,80), zeroVec,  CreateVec(0.25,0.75,0.25),DIFF) );
+  mdl.add( RectAngleClass.Create(CreateVec(20,40,80),CreateVec(80,70,45),zeroVec,  CreateVec(0.25,0.75,0.25),DIFF) );
+
 end;
 
 function intersect(const r:RayRecord;var t:real; var id:integer):boolean;
