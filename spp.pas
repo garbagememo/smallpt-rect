@@ -174,6 +174,7 @@ type
 
 constructor RectAngleClass.Create(p1,p2,e_,c_:VecRecord;refl_:RefType);
 begin
+  inherited create(p2,e_,c_,refl_);
   (*xy*)
   RAary[0]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p1,e_,c_,refl_);
   RAary[1]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p2,e_,c_,refl_);

@@ -117,7 +117,7 @@ END;
 
 PROCEDURE VecWriteln(V:VecRecord);
 BEGIN
-    WRITELN(FtoSF(v.x),' : ',FtoSF(v.y),' : ',FtoSF(v.z));
+    WRITELN(v.x:8:2,' : ',v.y:8:2,' : ',v.z:8:2);
 END;
 
 
