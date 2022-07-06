@@ -71,6 +71,10 @@ type
   TLoopRenderThreadClass=class(TRenderThreadClass)
      function radiance(r:RayRecord;depth:integer):VecRecord;override;
   end;
+  TNEERenderClass=CLASS(TRenderThreadClass)
+    function Radiance(r : RayRecord;Depth:INTEGER ):VecRecord;override;
+  end;                
+
 
   constructor SceneClass.Create(mdl_:TList;cam_:CameraRecord);
   begin
@@ -144,8 +148,21 @@ type
 
   constructor RectClass.Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
   begin
-    RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;inherited create(p_,e_,c_,refl_);
+    RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;
+    case RA of
+      XY:begin
+	   p_.x:=(h1+h2)/2;p_.y:=(v1+v2)/2;p_.z:=p_.z;
+	 end;
+      XZ:begin
+	   p_.x:=(h1+h2)/2;p_.z:=(v1+v2)/2;p_.y:=p_.y;
+	 end;
+      YZ:begin
+	   p_.y:=(h1+h2)/2;p_.z:=(v1+v2)/2;p_.x:=p_.x;
+	 end;
+    end;(*case*)
+    inherited create(p_,e_,c_,refl_);
   end;
+
   function RectClass.intersect(const r:RayRecord):real;
   var
     t:real;
@@ -190,8 +207,9 @@ type
   end;
 
 constructor RectAngleClass.Create(p1,p2,e_,c_:VecRecord;refl_:RefType);
+var
+  p_:VecRecord;
 begin
-  inherited create(p2,e_,c_,refl_);
   (*xy*)
   RAary[0]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p1,e_,c_,refl_);
   RAary[1]:=RectClass.Create(XY,p1.x,p2.x,p1.y,p2.y,p2,e_,c_,refl_);
@@ -201,6 +219,8 @@ begin
   (*YZ*)
   RAary[4]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p1,e_,c_,refl_);
   RAary[5]:=RectClass.Create(YZ,p1.y,p2.y,p1.z,p2.z,p2,e_,c_,refl_);  
+  p_.x:=(p1.x+p2.x)/2;p_.y:=(p1.y+p2.y)/2;p_.z:=(p1.z+p2.z)/2;
+  inherited create(p_,e_,c_,refl_);
 end;
 
 function RectAngleClass.intersect(const r:RayRecord):real;
@@ -373,7 +393,7 @@ BEGIN
     cf:=VecMul(cf,f);
     CASE obj.refl OF
       DIFF:BEGIN
-        d:=VecSphereRef(nl);
+        d:=VecSphereRef(nl);//VecShpereRefは正規化したVecしか受け付けない
         r:=CreateRay(x,d);
       END;(*DIFF*)
       SPEC:BEGIN
@@ -404,6 +424,145 @@ BEGIN
         ELSE BEGIN//屈折
           cf:=cf*TP;
           cl:=cl+VecMul(cf,obj.e);
+          r:=CreateRay(x,tdir);
+        END
+      END;(*REFR*)
+    END;(*CASE*)
+  END;(*WHILE LOOP *)
+END;
+
+function TNEERenderClass.Radiance( r:RayRecord;depth:INTEGER):VecRecord;
+var
+  id,i,tid:INTEGER;
+  obj,s:ModelClass;
+  x,n,f,nl,u,v,w,d:VecRecord;
+  p,r1,r2,r2s,t,m1,ss,cc,d2,a2:real;
+  into:BOOLEAN;
+  RefRay:RayRecord;
+  nc,nt,nnt,ddn,cos2t,q,a,b,c,R0,Re,RP,Tr,TP:real;
+  tDir:VecRecord;
+  EL,sw,su,sv,l,tw,tu,tv:VecRecord;
+  cos_a_max,eps1,eps2,eps2s,cos_a,sin_a,phi,omega:real;
+  cl,cf:VecRecord;
+  E:INTEGER;
+BEGIN
+//writeln(' DebugY=',DebugY,' DebugX=',DebugX);
+  depth:=0;
+  id:=0;cl:=ZeroVec;cf:=CreateVec(1,1,1);E:=1;
+  WHILE (TRUE) DO BEGIN
+    Inc(depth);
+    IF intersect(r,t,id)=FALSE THEN BEGIN
+       result:=cl;
+       EXIT;
+    END;
+    obj:=ModelClass(mdl[id]);
+    x:=r.o+r.d*t; n:=obj.GetNorm(x); f:=obj.c;
+    IF n*r.d<0 THEN nl:=n ELSE nl:=n*-1;
+    IF (f.x>f.y)AND(f.x>f.z) THEN p:=f.x ELSE IF f.y>f.z THEN p:=f.y ELSE p:=f.z;
+    tw:=obj.e*E;
+    cl:=cl+VecMul(cf,tw);
+
+    IF (Depth > 5) OR (p = 0) THEN
+       IF (random < p) THEN BEGIN
+         f:= f / p;
+       END
+       ELSE BEGIN
+         Result := cl;
+         EXIT;
+       END;
+
+    cf:=VecMul(cf,f);
+    CASE obj.refl OF
+      DIFF:BEGIN
+	d:=VecSphereRef(nl);
+        // Loop over any lights
+        EL:=ZeroVec;
+        tid:=id;
+        FOR i:=0 TO mdl.count-1 DO BEGIN
+          s:=ModelClass(mdl[i]);
+          IF (i=tid) THEN continue;
+	  if s.isLight=false then continue; // skip non-lights
+	  sw:=s.p-x;
+{
+	  d2:=sw*sw;  tr:=s.rad2/d2;
+          IF abs(sw.x)/sqrt(tr)>0.1 THEN 
+            su:=VecNorm(CreateVec(0,1,0)/sw) 
+          ELSE 
+            su:=VecNorm(CreateVec(1,0,0)/sw);
+          sv:=sw/su;
+          IF tr>1 THEN BEGIN
+            (*半球の内外=cos_aがマイナスとsin_aが＋、－で場合分け*)
+            (*半球内部なら乱反射した寄与全てを取ればよい・・はず*)
+            eps1:=M_2PI*random;eps2:=random;eps2s:=sqrt(eps2);
+            sincos(eps1,ss,cc);
+            l:=VecNorm(u*(cc*eps2s)+v*(ss*eps2s)+w*sqrt(1-eps2));
+            IF SceneRec.intersect(CreateRay(x,l),t,id) THEN BEGIN
+              IF id=i THEN BEGIN
+                tr:=l*nl;
+                tw:=s.e*tr;
+                EL:=EL+VecMul(f,tw);
+              END;
+            END;
+          END
+          ELSE BEGIN //半球外部の場合;
+            cos_a_max := sqrt(1-tr );
+            eps1 := random; eps2:=random;
+            cos_a := 1-eps1+eps1*cos_a_max;
+            sin_a := sqrt(1-cos_a*cos_a);
+            IF (1-2*random)<0 THEN sin_a:=-sin_a; 
+            phi := M_2PI*eps2;
+            tw:=sw*(cos(phi)*sin_a);tw:=tw+sv*(sin(phi)*sin_a);tw:=tw+sw*cos_a;
+            l:=VecNorm(tw);
+            IF (SceneRec.intersect(CreateRay(x,l), t, id) ) THEN BEGIN 
+              IF id=i THEN BEGIN  // shadow ray
+		 omega := 2*(1-cos_a_max);//omega:=s.rad2/d2;
+                tr:=l*nl;
+                IF tr<0 THEN tr:=0;
+                tw:=s.e*tr*omega;tw:=VecMul(f,tw);;
+                EL := EL + tw;  // 1/pi for brdf
+              END;
+            END;
+          END;
+}
+        END;(*for*)
+        tw:=obj.e*e+EL;
+        cl:= cl+VecMul(cf,tw );
+        E:=0;
+        r:=CreateRay(x,d)
+      END;(*DIFF*)
+      SPEC:BEGIN
+        tw:=obj.e*e;
+        cl:=cl+VecMul(cf,tw);
+        E:=1;tv:=n*2*(n*r.d) ;tv:=r.d-tv;
+        r:=CreateRay(x,tv);
+      END;(*SPEC*)
+      REFR:BEGIN
+        tv:=n*2*(n*r.d) ;tv:=r.d-tv;
+        RefRay:=CreateRay(x,tv);
+        into:= (n*nl>0);
+        nc:=1;nt:=1.5; IF into THEN nnt:=nc/nt ELSE nnt:=nt/nc; ddn:=r.d*nl;
+        cos2t:=1-nnt*nnt*(1-ddn*ddn);
+        IF cos2t<0 THEN BEGIN   // Total internal reflection
+          cl:=cl+VecMul(cf,obj.e*E);
+          E:=1;
+          r:=RefRay;
+          continue;
+        END;
+        IF into THEN q:=1 ELSE q:=-1;
+        tdir := VecNorm(r.d*nnt - n*(q*(ddn*nnt+sqrt(cos2t))));
+        IF into THEN Q:=-ddn ELSE Q:=tdir*n;
+        a:=nt-nc; b:=nt+nc; R0:=a*a/(b*b); c := 1-Q;
+        Re:=R0+(1-R0)*c*c*c*c*c;Tr:=1-Re;P:=0.25+0.5*Re;RP:=Re/P;TP:=Tr/(1-P);
+        IF random<p THEN BEGIN// 反射
+          cf:=cf*RP;
+          cl:=cl+VecMul(cf,obj.e*E);
+          E:=1;
+          r:=RefRay;
+        END
+        ELSE BEGIN//屈折
+          cf:=cf*TP;
+          cl:=cl+VecMul(cf,obj.e*E);
+          E:=1;
           r:=CreateRay(x,tdir);
         END
       END;(*REFR*)
