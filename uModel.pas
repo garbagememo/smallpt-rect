@@ -1,8 +1,8 @@
-UNIT uModel;
+unit uModel;
 {$MODE objfpc}{$H+}
 {$INLINE ON}
 {$modeswitch advancedrecords}
-INTERFACE
+interface
 uses SysUtils,Classes,uVect,uBMP,Math,getopts;
 const 
   eps=1e-4;
@@ -10,7 +10,7 @@ const
   DefaultSamples=16;
   M_2PI=2*pi;
 
-TYPE
+type
   ModelClass=class
     p,e,c:VecRecord;// position. emission,color
     refl:RefType;
@@ -50,7 +50,7 @@ var
 procedure InitScene;
 function intersect(const r:RayRecord;var t:real; var id:integer):boolean;
 
-IMPLEMENTATION
+implementation
   
   constructor ModelClass.Create(p_,e_,c_:VecRecord;refl_:RefType);
   begin
