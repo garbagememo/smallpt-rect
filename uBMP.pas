@@ -1,7 +1,7 @@
 unit uBMP;
 {$MODE objfpc}{$H+}
 interface
-uses Classes,SysUtils,uVect,math;
+uses Classes,SysUtils;
 
 const
     MaxArrayNum=1024*1024*2*2;
@@ -21,9 +21,6 @@ type
       procedure SetPixel(x,y:integer;col:rgbColor);
       procedure WriteBMPFile(FN:string);
     end;
-
-   function ClampVector(v:VecRecord):VecRecord;
-   function ColToRGB(v:VecRecord):rgbColor;
 implementation
 constructor BMPIOClass.Create(x,y:longint);
 var
@@ -101,29 +98,7 @@ begin
    blockwrite(b,bmpBody,bmpBodySize);
     Close(b);
 end;
-function Clamp(x:real):real;inline;
-begin
-   if x<0 then exit(0);
-   if x>1 then exit(1);
-   exit(x);
-end;
 
-function ClampVector(v:VecRecord):VecRecord;
-begin
-  result.x:=clamp(v.x);
-  result.y:=clamp(v.y);
-  result.z:=clamp(v.z);
-end;
-function ColToByte(x:real):byte;inline;
-begin
-    result:=trunc(power(x,1/2.2)*255+0.5);
-end;
-function ColToRGB(v:VecRecord):rgbColor;
-begin
-    result.r:=ColToByte(v.x);
-    result.g:=ColToByte(v.y);
-    result.b:=ColToByte(v.z);
-end;
 
 begin
 end.

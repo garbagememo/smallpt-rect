@@ -1,16 +1,27 @@
 unit uModel;
-{$MODE objfpc}{$H+}
+{$MODE objfpc}
 {$INLINE ON}
 {$modeswitch advancedrecords}
 interface
-uses SysUtils,Classes,uVect,uBMP,Math,getopts;
-const 
-  eps=1e-4;
-  INF=1e20;
-  DefaultSamples=16;
-  M_2PI=2*pi;
+uses SysUtils,Classes,uVect,math;
 
+
+const
+  eps            = 1e-4;
+  INF            = 1e20;
+  M_1_PI         = 1/pi;
+  M_2PI          = 2*pi;
+  DefaultSamples = 16;
 type
+
+  VertexRecord=record
+    cf:VecRecord;
+    p,n:VecRecord;
+    rad2:real;
+    id:integer;
+  //omega,ts,tr,preTR,preRad2:real;//debug
+  end;
+
   ModelClass=class
     p,e,c:VecRecord;// position. emission,color
     refl:RefType;
@@ -45,13 +56,93 @@ type
     function GetNorm(x:VecRecord):VecRecord;override;
   end;
 
+  CameraRecord=record
+    o,d,cx,cy : VecRecord;
+    dist      : real;
+    w,h       : integer;
+    ratio     : real;
+    samples   : integer;
+    procedure Setup(o_,d_: VecRecord;w_,h_:integer;ratio_,dist_:real);
+    procedure SetSamples(sam :integer);
+    function Ray(x,y,sx,sy : integer):RayRecord;
+  end;
+
+  SceneRecord=record
+    SceneName : string;
+    mdl       : TList;
+    cam       : CameraRecord;
+  end;
+
+
+procedure InitScene(w,h:integer);
+function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
+
 var
   mdl:TList;
-procedure InitScene;
-function intersect(const r:RayRecord;var t:real; var id:integer):boolean;
-
+  cam:CameraRecord;
 implementation
-  
+function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
+var
+  d:real;
+  i:integer;
+begin
+  t:=INF;
+  for i:=0 to mdl.count-1 do begin
+    d:=SphereClass(mdl[i]).intersect(r);
+    if d<t then begin
+      t:=d;
+      id:=i;
+    end;
+  end;
+  result:=(t<inf);
+end;
+
+procedure InitScene(w,h:integer);
+begin
+   mdl:=TList.Create;
+   mdl.add( SphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
+   mdl.add( SphereClass.Create(1e5, CreateVec(-1e5+99,40.8,81.6), ZeroVec,CreateVec(0.25,0.25,0.75),DIFF) );//Right
+   mdl.add( SphereClass.Create(1e5, CreateVec(50,40.8, 1e5),      ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Back
+   mdl.add( SphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170+eps),ZeroVec,CreateVec(0,0,0)       ,DIFF) );//Front
+   mdl.add( SphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
+   mdl.add( SphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
+   mdl.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
+   mdl.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
+   mdl.add( SphereClass.Create(600,CreateVec(50,681.6-0.27,81.6), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
+   Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
+end;
+
+
+procedure CameraRecord.Setup(o_,d_:VecRecord;w_,h_:integer;ratio_,dist_:real);
+begin
+  ratio:=ratio_;dist:=dist_;w:=w_;h:=h_;
+  o:=o_;d:=VecNorm(d_);
+  cx:=CreateVec(ratio*w_/h_,0,0);
+  cy:=VecNorm(cx/d_)*ratio;
+   samples:=DefaultSamples;
+end;
+
+procedure CameraRecord.SetSamples(sam :integer );
+begin
+   samples:=sam;
+end;
+
+function CameraRecord.Ray(x,y,sx,sy:integer):RayRecord;
+var
+  r1,r2,dx,dy:real;
+  td:VecRecord;
+begin
+  r1:=2*random;
+  if r1<1 then dx:=sqrt(r1)-1 else dx:=1-sqrt(2-r1);
+  r2:=2*random;
+  if (r2 < 1) then dy := sqrt(r2)-1 else dy := 1-sqrt(2-r2);
+  td:= cy*(((sy + 0.5 + dy)/2 + (h-y-1))/h - 0.5)+cx*(((sx + 0.5 + dx)/2 + x)/w - 0.5)+d;
+  td:=VecNorm(td);
+  result.o:= td*dist+ o;
+  result.d := td;
+end;
+
+
   constructor ModelClass.Create(p_,e_,c_:VecRecord;refl_:RefType);
   begin
     p:=p_;e:=e_;c:=c_;refl:=refl_;if VecSQR(e)>0 then isLight:=TRUE else isLight:=false;
@@ -170,38 +261,10 @@ begin
   result:=RAary[HitID].GetNorm(x);
 end;
 
-procedure InitScene;
-begin
-  mdl:=TList.Create;
-  mdl.add( sphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
-  mdl.add( sphereClass.Create(1e5, CreateVec(-1e5+99,40.8,81.6), ZeroVec,CreateVec(0.25,0.25,0.75),DIFF) );//Right
-  mdl.add( sphereClass.Create(1e5, CreateVec(50,40.8, 1e5),      ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Back
-  mdl.add( sphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170),  ZeroVec,CreateVec(0,0,0),      DIFF) );//Front
-  mdl.add( sphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
-  mdl.add( sphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
-//  mdl.add( sphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999, SPEC) );//Mirror
-  mdl.add( sphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999, REFR) );//Glass
-  mdl.add( sphereClass.Create(600, CreateVec(50,681.6-0.27,81.6),CreateVec(12,12,12),    ZeroVec,DIFF) );//Ligth
-//  mdl.add( RectClass.Create(XY,20,80,40,79,CreateVec(50,55,80), zeroVec,  CreateVec(0.25,0.75,0.25),DIFF) );
-  mdl.add( RectAngleClass.Create(CreateVec(10,0,30),CreateVec(40,40,65),zeroVec,  CreateVec(0.66,0.99,0.66),SPEC) );
-end;
 
-function intersect(const r:RayRecord;var t:real; var id:integer):boolean;
-var 
-  d:real;
-  i:integer;
-begin
-  t:=INF;
-  for i:=0 to mdl.count-1 do begin
-    d:=ModelClass(mdl[i]).intersect(r);
-    if d<t then begin
-      t:=d;
-      id:=i;
-    end;
-  end;
-  result:=(t<inf);
-end;
 
 begin
-  mdl:=TList.Create;
 end.
+
+
+
