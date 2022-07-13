@@ -12,6 +12,7 @@ const
   M_1_PI         = 1/pi;
   M_2PI          = 2*pi;
   DefaultSamples = 16;
+  MaxSceneList=32;
 type
   SceneRecord=record
     SceneName : string;
@@ -20,14 +21,22 @@ type
   end;
   SceneRecordList=record
     MaxIndex:integer;
-    SRL:array[0..20] of SceneRecord;
+    SRL:array[0..MaxSceneList] of SceneRecord;
     procedure InitSceneRecord(w,h:integer);
     function GetScene(id:integer):SceneRecord;
+    procedure AddScene(Scene:SceneRecord);
   end;
 var
   SRList:SceneRecordList;
   
 implementation
+procedure SceneRecordList.AddScene(Scene:SceneRecord);
+begin
+  if MaxIndex<MaxSceneList then begin
+    Inc(MaxIndex);
+    SRL[MaxIndex]:=Scene;
+  end;
+end;
 
 function SceneRecordList.GetScene(id:integer):SceneRecord;
 begin
@@ -43,30 +52,29 @@ var
   Cen,C,TC,SCC:VecRecord;
   R,T,D,Z:real;
 begin
-   MaxIndex:=-1;
-   Inc(MaxIndex);
+  MaxIndex:=-1;
 
-   //-------------Debug Scene sc1-------------
+  //-------------Debug Scene sc1-------------
+  Inc(MaxIndex);
+  SRL[MaxIndex].SceneName:='0-Debug Scene';
+  tempL:=TList.Create;
+  tempL.add( SphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
+  tempL.add( SphereClass.Create(1e5, CreateVec(-1e5+99,40.8,81.6), ZeroVec,CreateVec(0.25,0.25,0.75),DIFF) );//Right
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8, 1e5),      ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Back
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170+eps),ZeroVec,CreateVec(0,0,0)       ,DIFF) );//Front
+  tempL.add( SphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
+  tempL.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
+  tempL.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
+  tempL.add( SphereClass.Create(600,CreateVec(50,681.6-0.27,81.6), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
 
-   SRL[MaxIndex].SceneName:='0-Debug Scene';
-   tempL:=TList.Create;
-   tempL.add( SphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
-   tempL.add( SphereClass.Create(1e5, CreateVec(-1e5+99,40.8,81.6), ZeroVec,CreateVec(0.25,0.25,0.75),DIFF) );//Right
-   tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8, 1e5),      ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Back
-   tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170+eps),ZeroVec,CreateVec(0,0,0)       ,DIFF) );//Front
-   tempL.add( SphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
-   tempL.add( SphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
-   tempL.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
-   tempL.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
-   tempL.add( SphereClass.Create(600,CreateVec(50,681.6-0.27,81.6), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
-
-   SRL[MaxIndex].mdl:=tempL;
-   SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
-
+  SRL[MaxIndex].mdl:=tempL;
+  SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
 
 
-   //----------cornel box sc1-----------
-   Inc(MaxIndex);
+
+  //----------cornel box sc1-----------
+  Inc(MaxIndex);
   SRL[MaxIndex].SceneName:='1-cornel Box';
   tempL:=TList.Create;
   tempL.add( SphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
@@ -125,7 +133,7 @@ begin
   SRL[MaxIndex].mdl:=tempL;
   SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
 
-//-----------island sc4-------
+  //-----------island sc4-------
   Inc(MaxIndex);
   SRL[MaxIndex].SceneName:='4-island';
 
@@ -185,13 +193,13 @@ begin
   SRL[MaxIndex].mdl:=tempL;
   SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
 
-//----------------Overlap  sc6-----------------
+  //----------------Overlap  sc6-----------------
   Inc(MaxIndex);
   SRL[MaxIndex].SceneName:='6-Overlap';
-tempL:=TList.Create;
+  tempL:=TList.Create;
 
-D:=50;
-R:=40;
+  D:=50;
+  R:=40;
   tempL.add(SphereClass.Create(150, CreateVec(50+75,28,62), CreateVec(1,1,1)*0e-3, CreateVec(1,0.9,0.8)*0.93, REFR));
   tempL.add(SphereClass.Create(28,  CreateVec(50+5,-28,62), CreateVec(1,1,1)*1e1, ZeroVec, DIFF));
   tempL.add(SphereClass.Create(300, CreateVec(50,28,62), CreateVec(1,1,1)*0e-3, CreateVec(1,1,1)*0.93, SPEC));
@@ -202,13 +210,13 @@ R:=40;
   //----------------wada  sc7-------------
   Inc(MaxIndex);
   SRL[MaxIndex].SceneName:='7-wada';
-tempL:=TList.Create;
+  tempL:=TList.Create;
 
-R:=60;
-//double R=120;
-T:=30*PI/180.;
-D:=R/cos(T);
-Z:=60;
+  R:=60;
+  //double R=120;
+  T:=30*PI/180.;
+  D:=R/cos(T);
+  Z:=60;
 
   tempL.add(SphereClass.Create(1e5, CreateVec(50, 100, 0),      CreateVec(1,1,1)*3e0, ZeroVec, DIFF)); // sky
   tempL.add(SphereClass.Create(1e5, CreateVec(50, -1e5-D-R, 0), ZeroVec,     CreateVec(0.1,0.1,0.1),DIFF));           //grnd
@@ -226,19 +234,20 @@ Z:=60;
   //-----------------wada2 sc8----------
   Inc(MaxIndex);
   SRL[MaxIndex].SceneName:='8-wada2';
-tempL:=TList.Create;
+  tempL:=TList.Create;
 
-R:=120;     // radius
-T:=30*PI/180.;
-D:=R/cos(T);     //distance
-Z:=62;
-C:=CreateVec(0.275, 0.612, 0.949);
+  R:=120;     // radius
+  T:=30*PI/180.;
+  D:=R/cos(T);     //distance
+  Z:=62;
+  C:=CreateVec(0.275, 0.612, 0.949);
 
   tempL.add(SphereClass.Create(R, CreateVec(50,28,Z)+CreateVec( cos(T),sin(T),0)*D,    C*6e-2,CreateVec(1,1,1)*0.996, SPEC)); //red
   tempL.add(SphereClass.Create(R, CreateVec(50,28,Z)+CreateVec(-cos(T),sin(T),0)*D,    C*6e-2,CreateVec(1,1,1)*0.996, SPEC)); //grn
   tempL.add(SphereClass.Create(R, CreateVec(50,28,Z)+CreateVec(0,-1,0)*D,              C*6e-2,CreateVec(1,1,1)*0.996, SPEC)); //blue
   tempL.add(SphereClass.Create(R, CreateVec(50,28,Z)+CreateVec(0,0,-1)*R*2*sqrt(2/3),C*0e-2,CreateVec(1,1,1)*0.996, SPEC)); //back
-  tempL.add(SphereClass.Create(2*2*R*2*sqrt(2/3)-R*2*sqrt(2/3)/3, CreateVec(50,28,Z)+CreateVec(0,0,-R*2*sqrt(2/3)/3), CreateVec(1,1,1)*0,CreateVec(1,1,1)*0.5, SPEC)); //front
+  tempL.add(SphereClass.Create(2*2*R*2*sqrt(2/3)-R*2*sqrt(2/3)/3,
+                                  CreateVec(50,28,Z)+CreateVec(0,0,-R*2*sqrt(2/3)/3), CreateVec(1,1,1)*0,CreateVec(1,1,1)*0.5, SPEC)); //front
 
   SRL[MaxIndex].mdl:=tempL;
   SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
@@ -248,10 +257,10 @@ C:=CreateVec(0.275, 0.612, 0.949);
   Inc(MaxIndex);
   SRL[MaxIndex].SceneName:='9-forest';
 
-tempL:=TList.Create;
+  tempL:=TList.Create;
 
-tc:=CreateVec(0.0588, 0.361, 0.0941);
-scc:=CreateVec(1,1,1)*0.7;
+  tc:=CreateVec(0.0588, 0.361, 0.0941);
+  scc:=CreateVec(1,1,1)*0.7;
   tempL.add(SphereClass.Create(1e5, CreateVec(50, 1e5+130, 0),  CreateVec(1,1,1)*1.3,ZeroVec,DIFF)); //lite
   tempL.add(SphereClass.Create(1e2, CreateVec(50, -1e2+2, 47),  ZeroVec,CreateVec(1,1,1)*0.7,DIFF)); //grnd
 
@@ -273,7 +282,24 @@ scc:=CreateVec(1,1,1)*0.7;
   SRL[MaxIndex].mdl:=tempL;
   SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
 
+  //-------------Debug Scene sc10-------------
+  Inc(MaxIndex);
+  SRL[MaxIndex].SceneName:='10-Debug Scene';
+  tempL:=TList.Create;
+  tempL.add( SphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
+  tempL.add( SphereClass.Create(1e5, CreateVec(-1e5+99,40.8,81.6), ZeroVec,CreateVec(0.25,0.25,0.75),DIFF) );//Right
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8, 1e5),      ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Back
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170+eps),ZeroVec,CreateVec(0,0,0)       ,DIFF) );//Front
+  tempL.add( SphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
+  tempL.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
+  tempL.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
+//  tempL.add( SphereClass.Create(600,CreateVec(50,681.6-0.27,81.6), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
+  tempL.add( RectClass.Create(XZ,40,60,70,90,CreateVec(50,70,80), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
+//  tempL.add( RectAngleClass.Create(CreateVec(45,65,75),CreateVec(55,70,85), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
 
+  SRL[MaxIndex].mdl:=tempL;
+  SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
 end;
 
 

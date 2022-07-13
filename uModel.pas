@@ -26,27 +26,35 @@ type
     p,e,c:VecRecord;// position. emission,color
     refl:RefType;
     isLight:boolean;
+    uvw:uvwVecRecord;
+    lp:VecRecord;
     constructor Create(p_,e_,c_:VecRecord;refl_:RefType);
     function intersect(const r:RayRecord):real;virtual;abstract;
     function GetNorm(x:VecRecord):VecRecord;virtual;abstract;
+    function GetLightPath(x:VecRecord):VecRecord;virtual;abstract;
+    function omega_1_pi:real;virtual;abstract;
   end;
 
   SphereClass=class(ModelClass)
     rad:real;       //radius
-    rad2:real;
+    rad2,tanR:real;
+    cos_a_max:real;
     constructor Create(rad_:real;p_,e_,c_:VecRecord;refl_:RefType);
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
+    function GetLightPath(x:VecRecord):VecRecord;override;
+    function omega_1_pi:real;override;
   end;
 
   RectClass=class(ModelClass)
-    H1,H2,V1,V2:Real;
+    H1,H2,V1,V2,w,h,area,dist,tempR:Real;
     RA:RectAxisType;
     constructor Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
+    function GetLightPath(x:VecRecord):VecRecord;override;
+    function omega_1_pi:real;override;
   end;
-
 
   RectAngleClass=class(ModelClass)
     RAary:array[0..5] of RectClass;
@@ -74,7 +82,6 @@ type
   end;
 
 
-procedure InitScene(w,h:integer);
 function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
 
 var
@@ -97,34 +104,18 @@ begin
   result:=(t<inf);
 end;
 
-procedure InitScene(w,h:integer);
-begin
-   mdl:=TList.Create;
-   mdl.add( SphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
-   mdl.add( SphereClass.Create(1e5, CreateVec(-1e5+99,40.8,81.6), ZeroVec,CreateVec(0.25,0.25,0.75),DIFF) );//Right
-   mdl.add( SphereClass.Create(1e5, CreateVec(50,40.8, 1e5),      ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Back
-   mdl.add( SphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170+eps),ZeroVec,CreateVec(0,0,0)       ,DIFF) );//Front
-   mdl.add( SphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
-   mdl.add( SphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
-   mdl.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
-   mdl.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
-   mdl.add( SphereClass.Create(600,CreateVec(50,681.6-0.27,81.6), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
-   Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
-end;
-
-
-procedure CameraRecord.Setup(o_,d_:VecRecord;w_,h_:integer;ratio_,dist_:real);
+procedure CameraRecord.Setup(o_,d_: VecRecord;w_,h_:integer;ratio_,dist_:real);
 begin
   ratio:=ratio_;dist:=dist_;w:=w_;h:=h_;
   o:=o_;d:=VecNorm(d_);
   cx:=CreateVec(ratio*w_/h_,0,0);
   cy:=VecNorm(cx/d_)*ratio;
-   samples:=DefaultSamples;
+  samples:=DefaultSamples;
 end;
 
 procedure CameraRecord.SetSamples(sam :integer );
 begin
-   samples:=sam;
+  samples:=sam;
 end;
 
 function CameraRecord.Ray(x,y,sx,sy:integer):RayRecord;
@@ -143,88 +134,154 @@ begin
 end;
 
 
-  constructor ModelClass.Create(p_,e_,c_:VecRecord;refl_:RefType);
-  begin
-    p:=p_;e:=e_;c:=c_;refl:=refl_;if VecSQR(e)>0 then isLight:=TRUE else isLight:=false;
-  end;
-  constructor SphereClass.Create(rad_:real;p_,e_,c_:VecRecord;refl_:RefType);
-  begin
-    rad:=rad_;rad2:=rad*rad; inherited create(p_,e_,c_,refl_);
-  end;
-  function SphereClass.intersect(const r:RayRecord):real;
-  var
-    op:VecRecord;
-    t,b,det:real;
-  begin
-    op:=p-r.o;
-    t:=eps;b:=op*r.d;
-    det:=b*b-op*op+rad*rad;
-    if det<0 then 
-      result:=INF
+constructor ModelClass.Create(p_,e_,c_:VecRecord;refl_:RefType);
+begin
+  p:=p_;e:=e_;c:=c_;refl:=refl_;if VecSQR(e)>0 then isLight:=TRUE else isLight:=false;
+end;
+constructor SphereClass.Create(rad_:real;p_,e_,c_:VecRecord;refl_:RefType);
+begin
+  rad:=rad_;rad2:=rad*rad; inherited create(p_,e_,c_,refl_);
+end;
+function SphereClass.intersect(const r:RayRecord):real;
+var
+  op:VecRecord;
+  t,b,det:real;
+begin
+  op:=p-r.o;
+  t:=eps;b:=op*r.d;
+  det:=b*b-op*op+rad*rad;
+  if det<0 then 
+    result:=INF
+  else begin
+    det:=sqrt(det); t:=b-det;
+    if t>eps then 
+      result:=t
     else begin
-      det:=sqrt(det); t:=b-det;
+      t:=b+det;
       if t>eps then 
-         result:=t
-      else begin
-         t:=b+det;
-         if t>eps then 
-          result:=t
-         else
-          result:=INF;
-      end;
+        result:=t
+      else
+        result:=INF;
     end;
   end;
-  function SphereClass.GetNorm(x:VecRecord):VecRecord;
-  begin
-    result:=VecNorm(x-p)
-  end;
+end;
+function SphereClass.GetNorm(x:VecRecord):VecRecord;
+begin
+  result:=VecNorm(x-p)
+end;
 
-  constructor RectClass.Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
-  begin
-    RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;inherited create(p_,e_,c_,refl_);
-  end;
-  function RectClass.intersect(const r:RayRecord):real;
-  var
-    t:real;
-    pt:VecRecord;
-  begin
-    (**�����ƕ��s�ɋ߂��ꍇ�̏������K�v�����E�E�E**)
-    case RA of
-      xy:begin
-            result:=INF;
-            if abs(r.d.z)<eps then exit;
-            t:=(p.z-r.o.z)/r.d.z;
-            if t<eps then exit;//result is INF
-            pt:=r.o+r.d*t;
-            if (pt.x<H2) and (pt.x>H1) and (pt.y<V2)and (pt.y>V1) then result:=t;
-          end;(*xy*)
-      xz:begin
-            result:=INF;
-            if abs(r.d.y)<eps then exit;
-            t:=(p.y-r.o.y)/r.d.y;
-            if t<eps then exit;//result is INF
-            pt:=r.o+r.d*t;
-            if (pt.x<H2) and (pt.x>H1) and (pt.z<V2)and (pt.z>V1) then result:=t;
-          end;(*xz*)
-      yz:begin
-            result:=INF;
-            if abs(r.d.y)<eps then exit;
-            t:=(p.x-r.o.x)/r.d.x;
-            if t<eps then exit;//result is INF
-            pt:=r.o+r.d*t;
-            if (pt.y<H2) and (pt.y>H1) and (pt.z<V2)and (pt.z>V1) then result:=t;
-          end;(*yz*)
-    end;(*case*)
-  end;
 
-  function RectClass.GetNorm(x:VecRecord):VecRecord;
-  begin
-    case RA of
-      xy:result:=CreateVec(0,0,1);
-      xz:result:=CreateVec(0,1,0);
-      yz:result:=CreateVec(1,0,0);
-    end;
+function SphereClass.GetLightPath(x:VecRecord):VecRecord;
+var
+  eps1,eps2,eps2s,ss,cc:real;
+  cos_a,sin_a,phi:real;
+begin
+  lp:=p-x;
+  uvw:=uvwVecGet(lp);
+  tanR:=rad2/VecSQR(lp);
+  if tanR>1 then begin
+    (*半球の内外=cos_aがマイナスとsin_aが＋、－で場合分け*)
+    (*半球内部なら乱反射した寄与全てを取ればよい・・はず*)
+
+    eps1:=M_2PI*random;eps2:=random;eps2s:=sqrt(eps2);
+    sincos(eps1,ss,cc);
+    result:=VecNorm(uvw.u*(cc*eps2s)+uvw.v*(ss*eps2s)+uvw.w*sqrt(1-eps2));
+  end
+  else begin //半球外部の場合;
+    cos_a_max := sqrt(1-tanR );
+    eps1 := random; eps2:=random;
+    cos_a := 1-eps1+eps1*cos_a_max;
+    sin_a := sqrt(1-cos_a*cos_a);
+    if (1-2*random)<0 then sin_a:=-sin_a; 
+    phi := M_2PI*eps2;
+    result:=VecNorm(uvw.u*(cos(phi)*sin_a)+uvw.v*(sin(phi)*sin_a)+uvw.w*cos_a);
   end;
+end;
+
+function SphereClass.omega_1_pi:real;
+begin
+  if tanR>1 then begin
+    result:=1;
+  end
+  else begin
+    result:=2*PI/PI*(1-cos_a_max);//result:=rad2/d^2
+  end;
+end;
+          
+constructor RectClass.Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
+begin
+  RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;h:=H2-H1;w:=V2-V1;
+  case RA of
+    XY:begin p_.x:=H1; p_.y:=V1; end;
+    XZ:begin p_.x:=H1; p_.z:=V1; end;
+    YZ:begin p_.y:=H1; p_.z:=V1; end;
+  end;
+  area:=w*h;writeln('Area=',Area,' w:h=',w:4:0,':',h:4:0);
+  inherited create(p_,e_,c_,refl_);
+end;
+function RectClass.intersect(const r:RayRecord):real;
+var
+  t:real;
+  pt:VecRecord;
+begin
+  (**光線と平行に近い場合の処理が必要だが・・・**)
+  case RA of
+    xy:begin
+         result:=INF;
+         if abs(r.d.z)<eps then exit;
+         t:=(p.z-r.o.z)/r.d.z;
+         if t<eps then exit;//result is INF
+         pt:=r.o+r.d*t;
+         if (pt.x<H2) and (pt.x>H1) and (pt.y<V2)and (pt.y>V1) then result:=t;
+       end;(*xy*)
+    xz:begin
+         result:=INF;
+         if abs(r.d.y)<eps then exit;
+         t:=(p.y-r.o.y)/r.d.y;
+         if t<eps then exit;//result is INF
+         pt:=r.o+r.d*t;
+         if (pt.x<H2) and (pt.x>H1) and (pt.z<V2)and (pt.z>V1) then result:=t;
+       end;(*xz*)
+    yz:begin
+         result:=INF;
+         if abs(r.d.y)<eps then exit;
+         t:=(p.x-r.o.x)/r.d.x;
+         if t<eps then exit;//result is INF
+         pt:=r.o+r.d*t;
+         if (pt.y<H2) and (pt.y>H1) and (pt.z<V2)and (pt.z>V1) then result:=t;
+       end;(*yz*)
+  end;(*case*)
+end;
+
+function RectClass.GetNorm(x:VecRecord):VecRecord;
+begin
+  case RA of
+    xy:result:=CreateVec(0,0,1);
+    xz:result:=CreateVec(0,1,0);
+    yz:result:=CreateVec(1,0,0);
+  end;
+end;
+function RectClass.GetLightPath(x:VecRecord):VecRecord;
+var
+  eps1,eps2:real;
+  r:VecRecord;
+begin
+  eps1:=random;eps2:=random;
+  case RA of
+    XY:begin r.x:=p.x+h*eps1;r.y:=p.y+w*eps2; r.z:=p.z end;
+    XZ:begin r.x:=p.x+h*eps1;r.z:=p.z+w*eps2; r.y:=p.y end;
+    YZ:begin r.y:=p.y+h*eps1;r.z:=p.z+w*eps2; r.x:=p.x end;
+  end;
+  dist:=VecSQR(r-x);
+  lp:=VecNorm(r-x);
+  result:=lp;
+end;
+function RectClass.omega_1_pi:real;
+begin
+  tempR:=lp*GetNorm(lp);
+  if tempR<0 then tempR:=-tempR;
+  result:=tempR*Area/(pi*dist);
+end;
 
 constructor RectAngleClass.Create(p1,p2,e_,c_:VecRecord;refl_:RefType);
 begin

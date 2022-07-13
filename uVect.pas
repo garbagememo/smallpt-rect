@@ -9,18 +9,19 @@ uses
 type
     RefType=(DIFF,SPEC,REFR);// material types, used in radiance()
 {
-	DIFFUSE,    // 完全拡散面。いわゆるLambertian面。
-	SPECULAR,   // 理想的な鏡面。
-	REFRACTION, // 理想的なガラス的物質。
+    DIFFUSE,    // 完全拡散面。いわゆるLambertian面。
+    SPECULAR,   // 理想的な鏡面。
+    REFRACTION, // 理想的なガラス的物質。
 }
     RectAxisType=(XY,YZ,XZ);(*平面がどっち向いているか*)
 
     VecRecord=record
         x,y,z:real;
     end;
-  NormVecRecord=record
-    u,v,w:VecRecord;
-  end;
+
+    uvwVecRecord=record
+      u,v,w:VecRecord;
+    end;
 
     RayRecord=record
        o, d:VecRecord;
@@ -44,7 +45,7 @@ function VecDot(const V1,V2 :VecRecord):real;//内積
 function VecCross(const V1,V2 :VecRecord):VecRecord;//外積
 function VecAdd3(const V1,V2,V3:VecRecord):VecRecord;inline;
 procedure VecWriteln(V:VecRecord);
-function GetNormVec(const l:VecRecord):NormVecRecord;inline;
+function uvwVecGet(const l:VecRecord):uvwVecRecord;inline;
 function VecSphereRef(const w:VecRecord):VecRecord;inline;(*vを法線に半球状に分布する光線を求める*)
 
 operator * (const v1:VecRecord;const r:real)v:VecRecord;inline;
@@ -125,7 +126,7 @@ begin
   writeln(v.x:8:2,' : ',v.y:8:2,' : ',v.z:8:2);
 end;
 
-function GetNormVec(const l:VecRecord):NormVecRecord;inline;
+function uvwVecGet(const l:VecRecord):uvwVecRecord;inline;
 begin
   result.w:=l;
   if abs(result.w.x)>0.1 then
@@ -137,10 +138,10 @@ end;
 function VecSphereRef(const w:VecRecord):VecRecord;inline;
 var
   r1,r2,r2s:real;
-  uvw:NormVecRecord;
+  uvw:uvwVecRecord;
   u,v:VecRecord;
 begin
-  uvw:=GetNormVec(w);
+  uvw:=uvwVecGet(w);
   r1:=2*PI*random;r2:=random;r2s:=sqrt(r2);
   {  
      if abs(w.x)>0.1 then

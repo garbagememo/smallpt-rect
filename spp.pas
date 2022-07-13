@@ -4,9 +4,6 @@ program smallptrect;
 
 uses SysUtils,Classes,uVect,uBMP,uModel,uScene,Math,getopts;
 
-const 
-  eps=1e-4;
-  INF=1e20;
 type 
 
   TRenderClass=class
@@ -90,8 +87,7 @@ end;
 function TNEERenderClass.Radiance( r:RayRecord;depth:integer):VecRecord;
 var
   id,i,tid:integer;
-  obj:ModelClass;
-  s:SphereClass;//Not Rect Implement
+  obj,s:ModelClass;// Rect Implement
   x,n,f,nl,u,v,w,d:VecRecord;
   p,r1,r2,r2s,t,m1,ss,cc:real;
   into:boolean;
@@ -103,14 +99,14 @@ var
   cl,cf:VecRecord;
   E:integer;
 begin
-//writeln(' DebugY=',DebugY,' DebugX=',DebugX);
+  //writeln(' DebugY=',DebugY,' DebugX=',DebugX);
   depth:=0;
   id:=0;cl:=ZeroVec;cf:=CreateVec(1,1,1);E:=1;
   while (TRUE) do begin
     Inc(depth);
     if intersect(r,t,id)=false then begin
-       result:=cl;
-       exit;
+      result:=cl;
+      exit;
     end;
     obj:=ModelClass(mdl[id]);
     x:=r.o+r.d*t; n:=obj.GetNorm(x); f:=obj.c;
@@ -120,110 +116,80 @@ begin
     cl:=cl+VecMul(cf,tw);
 
     if (Depth > 5) or (p = 0) then
-       if (random < p) then begin
-         f:= f / p;
-       end
-       else begin
-         Result := cl;
-         exit;
-       end;
+      if (random < p) then begin
+        f:= f / p;
+      end
+      else begin
+        Result := cl;
+        exit;
+      end;
 
     cf:=VecMul(cf,f);
     case obj.refl of
-      DIFF:begin
-        d:=VecSphereRef(nl);
-
-        // Loop over any lights
-        EL:=ZeroVec;
-        tid:=id;
-        for i:=0 to mdl.count-1 do begin
-          s:=SphereClass(mdl[i]);
-          if (i=tid) then begin
-            continue;
-          end;
-          if (s.e.x<=0) and  (s.e.y<=0) and (s.e.z<=0)  then continue; // skip non-lights
-          sw:=s.p-x;
-          tr:=sw*sw;  tr:=s.rad2/tr;
-          if abs(sw.x)/sqrt(tr)>0.1 then 
-            su:=VecNorm(CreateVec(0,1,0)/sw) 
-          else 
-            su:=VecNorm(CreateVec(1,0,0)/sw);
-          sv:=sw/su;
-          if tr>1 then begin
-            (*半球の内外=cos_aがマイナスとsin_aが＋、－で場合分け*)
-            (*半球内部なら乱反射した寄与全てを取ればよい・・はず*)
-            eps1:=M_2PI*random;eps2:=random;eps2s:=sqrt(eps2);
-            sincos(eps1,ss,cc);
-            l:=VecNorm(u*(cc*eps2s)+v*(ss*eps2s)+w*sqrt(1-eps2));
+      DIFF:
+        begin
+          d:=VecSphereRef(nl);
+          // Loop over any lights
+          EL:=ZeroVec;
+          tid:=id;
+          for i:=0 to mdl.count-1 do begin
+            s:=ModelClass(mdl[i]);
+            if (i=tid) then begin
+              continue;
+            end;
+            if s.isLight=false  then continue; // skip non-lights
+            l:=s.GetLightPath(x);	  
             if intersect(CreateRay(x,l),t,id) then begin
               if id=i then begin
                 tr:=l*nl;
-                tw:=s.e*tr;
+                tw:=s.e*tr*s.omega_1_pi;
                 EL:=EL+VecMul(f,tw);
               end;
             end;
-          end
-          else begin //半球外部の場合;
-            cos_a_max := sqrt(1-tr );
-            eps1 := random; eps2:=random;
-            cos_a := 1-eps1+eps1*cos_a_max;
-            sin_a := sqrt(1-cos_a*cos_a);
-            if (1-2*random)<0 then sin_a:=-sin_a; 
-            phi := M_2PI*eps2;
-            tw:=sw*(cos(phi)*sin_a);tw:=tw+sv*(sin(phi)*sin_a);tw:=tw+sw*cos_a;
-            l:=VecNorm(tw);
-            if (intersect(CreateRay(x,l), t, id) ) then begin 
-              if id=i then begin  // shadow ray
-                omega := 2*PI*(1-cos_a_max);
-                tr:=l*nl;
-                if tr<0 then tr:=0;
-                tw:=s.e*tr*omega;tw:=VecMul(f,tw);tw:=tw*M_1_PI;
-                EL := EL + tw;  // 1/pi for brdf
-              end;
-            end;
+          end;(*for*)
+          tw:=obj.e*e+EL;
+          cl:= cl+VecMul(cf,tw );
+          E:=0;
+          r:=CreateRay(x,d);
+        end;(*DIFF*)
+      SPEC:
+        begin
+          tw:=obj.e*e;
+          cl:=cl+VecMul(cf,tw);
+          E:=1;tv:=n*2*(n*r.d) ;tv:=r.d-tv;
+          r:=CreateRay(x,tv);
+        end;(*SPEC*)
+      REFR:
+        begin
+          tv:=n*2*(n*r.d) ;tv:=r.d-tv;
+          RefRay:=CreateRay(x,tv);
+          into:= (n*nl>0);
+          nc:=1;nt:=1.5; if into then nnt:=nc/nt else nnt:=nt/nc; ddn:=r.d*nl;
+          cos2t:=1-nnt*nnt*(1-ddn*ddn);
+          if cos2t<0 then begin   // Total internal reflection
+            cl:=cl+VecMul(cf,obj.e*E);
+            E:=1;
+            r:=RefRay;
+            continue;
           end;
-        end;(*for*)
-        tw:=obj.e*e+EL;
-        cl:= cl+VecMul(cf,tw );
-        E:=0;
-        r:=CreateRay(x,d)
-      end;(*DIFF*)
-      SPEC:begin
-        tw:=obj.e*e;
-        cl:=cl+VecMul(cf,tw);
-        E:=1;tv:=n*2*(n*r.d) ;tv:=r.d-tv;
-        r:=CreateRay(x,tv);
-      end;(*SPEC*)
-      REFR:begin
-        tv:=n*2*(n*r.d) ;tv:=r.d-tv;
-        RefRay:=CreateRay(x,tv);
-        into:= (n*nl>0);
-        nc:=1;nt:=1.5; if into then nnt:=nc/nt else nnt:=nt/nc; ddn:=r.d*nl;
-        cos2t:=1-nnt*nnt*(1-ddn*ddn);
-        if cos2t<0 then begin   // Total internal reflection
-          cl:=cl+VecMul(cf,obj.e*E);
-          E:=1;
-          r:=RefRay;
-          continue;
-        end;
-        if into then q:=1 else q:=-1;
-        tdir := VecNorm(r.d*nnt - n*(q*(ddn*nnt+sqrt(cos2t))));
-        if into then Q:=-ddn else Q:=tdir*n;
-        a:=nt-nc; b:=nt+nc; R0:=a*a/(b*b); c := 1-Q;
-        Re:=R0+(1-R0)*c*c*c*c*c;Tr:=1-Re;P:=0.25+0.5*Re;RP:=Re/P;TP:=Tr/(1-P);
-        if random<p then begin// 反射
-          cf:=cf*RP;
-          cl:=cl+VecMul(cf,obj.e*E);
-          E:=1;
-          r:=RefRay;
-        end
-        else begin//屈折
-          cf:=cf*TP;
-          cl:=cl+VecMul(cf,obj.e*E);
-          E:=1;
-          r:=CreateRay(x,tdir);
-        end
-      end;(*REFR*)
+          if into then q:=1 else q:=-1;
+          tdir := VecNorm(r.d*nnt - n*(q*(ddn*nnt+sqrt(cos2t))));
+          if into then Q:=-ddn else Q:=tdir*n;
+          a:=nt-nc; b:=nt+nc; R0:=a*a/(b*b); c := 1-Q;
+          Re:=R0+(1-R0)*c*c*c*c*c;Tr:=1-Re;P:=0.25+0.5*Re;RP:=Re/P;TP:=Tr/(1-P);
+          if random<p then begin// 反射
+            cf:=cf*RP;
+            cl:=cl+VecMul(cf,obj.e*E);
+            E:=1;
+            r:=RefRay;
+          end
+          else begin//屈折
+            cf:=cf*TP;
+            cl:=cl+VecMul(cf,obj.e*E);
+            E:=1;
+            r:=CreateRay(x,tdir);
+          end
+        end;(*REFR*)
     end;(*CASE*)
   end;(*WHILE LOOP *)
 end;
@@ -314,6 +280,7 @@ begin
   end;(*WHILE LOOP *)
 end;
 
+
 var
    x,y,sx,sy,s       : integer;
    w,h,samps,height  : integer;
@@ -329,6 +296,7 @@ var
    c:char;
    Rt:TRenderClass;
    ModelID:integer;
+   SceneRec:SceneRecord;
 begin
   FN:='temp';
   w:=320 ;h:=240;  samps := 16;
@@ -336,9 +304,9 @@ begin
   ModelID:=0;
   c:=#0;
   repeat
-    c:=getopt('m:o:r:s:w:');
+    c:=getopt('m:o:a:s:w:');
     case c of
-      'r':begin
+      'a':begin
             ArgInt:=StrToInt(OptArg);
             AlgolNum:=ArgInt;
             case ArgInt of
@@ -354,6 +322,9 @@ begin
                     writeln('Render=Non Loop');
                   end;
             end;
+          end;
+      'm':begin
+            ModelID:=StrToInt(OptArg);
           end;
       'o': begin
              ArgFN:=OptArg;
@@ -371,7 +342,8 @@ begin
              writeln('w=',w,' ,h=',h);
            end;
       '?': begin
-             writeln(' -r [Render Algrithm] r1=Orignal  r2=Next Event  r3=No Loop r4=Light Path');
+             writeln(' -a [Render Algrithm] a1=Orignal  a2=Next Event  a3=No Loop ');
+             writeln(' -m [model Number ] default=0');
              writeln(' -o [finename] output filename');
              writeln(' -s [samps] sampling count');
              writeln(' -w [width] screen width pixel');
@@ -383,7 +355,12 @@ begin
   BMPClass:=BMPIOClass.Create(w,h);
   
   Randomize;
-  InitScene(w,h);
+
+  SRList.InitSceneRecord(w,h);
+  SceneRec:=SRList.GetScene(ModelID);
+  mdl:=SceneRec.mdl;
+  cam:=SceneRec.cam;
+  
   
   T1:=Time;
   writeln ('The time is : ',TimeToStr(Time));
