@@ -295,8 +295,8 @@ begin
   tempL.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
   tempL.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
 //  tempL.add( SphereClass.Create(600,CreateVec(50,681.6-0.27,81.6), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
-  tempL.add( RectClass.Create(XZ,40,60,70,90,CreateVec(50,70,80), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
-//  tempL.add( RectAngleClass.Create(CreateVec(45,65,75),CreateVec(55,70,85), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
+//  tempL.add( RectClass.Create(XZ,40,60,70,90,CreateVec(50,70,80), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
+  tempL.add( RectAngleClass.Create(CreateVec(48,68,78),CreateVec(52,72,82), CreateVec(4,4,4)*100,   ZeroVec,  DIFF) );//Ligth
 
   SRL[MaxIndex].mdl:=tempL;
   SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);

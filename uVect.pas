@@ -1,7 +1,7 @@
 unit uVect;
 {$MODE objfpc}{$H+}
 {$INLINE ON}
-
+{$modeswitch advancedrecords}
 interface
 
 uses

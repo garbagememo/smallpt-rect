@@ -1,7 +1,7 @@
 program smallptrect;
 {$MODE objfpc}{$H+}
 {$INLINE ON}
-
+{$modeswitch advancedrecords}
 uses SysUtils,Classes,uVect,uBMP,uModel,uScene,Math,getopts;
 
 type 
@@ -141,14 +141,14 @@ begin
             l:=s.GetLightPath(x);	  
             if intersect(CreateRay(x,l),t,id) then begin
               if id=i then begin
-                tr:=l*nl;
-                tw:=s.e*tr*s.omega_1_pi;
-                EL:=EL+VecMul(f,tw);
+ //               tr:=l*nl;
+ //               tw:=s.e*(l*nl)*s.omega_1_pi;
+                EL:=EL+VecMul(f,(s.e*(l*nl)*s.omega_1_pi));
               end;
             end;
           end;(*for*)
-          tw:=obj.e*e+EL;
-          cl:= cl+VecMul(cf,tw );
+//          tw:=obj.e*e+EL;
+          cl:= cl+VecMul(cf,(obj.e*e+EL) );
           E:=0;
           r:=CreateRay(x,d);
         end;(*DIFF*)
