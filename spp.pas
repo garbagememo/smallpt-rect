@@ -143,7 +143,7 @@ begin
               if id=i then begin
  //               tr:=l*nl;
  //               tw:=s.e*(l*nl)*s.omega_1_pi;
-                EL:=EL+VecMul(f,(s.e*(l*nl)*s.omega_1_pi));
+                EL:=EL+VecMul(f,(s.e*(l*nl)*s.omega_1_pi(l)));
               end;
             end;
           end;(*for*)

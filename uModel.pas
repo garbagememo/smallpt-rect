@@ -34,7 +34,7 @@ type
     function intersect(const r:RayRecord):real;virtual;abstract;
     function GetNorm(x:VecRecord):VecRecord;virtual;abstract;
     function GetLightPath(x:VecRecord):VecRecord;virtual;abstract;
-    function omega_1_pi:real;virtual;abstract;//半球に占める立法角の割合
+    function omega_1_pi(const l:VecRecord):real;virtual;abstract;//半球に占める立法角の割合
   end;
 
   SphereClass=class(ModelClass)
@@ -45,7 +45,7 @@ type
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
     function GetLightPath(x:VecRecord):VecRecord;override;
-    function omega_1_pi:real;override;
+    function omega_1_pi(const l:VecRecord):real;override;
   end;
 
   RectClass=class(ModelClass)
@@ -56,7 +56,7 @@ type
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
     function GetLightPath(x:VecRecord):VecRecord;override;
-    function omega_1_pi:real;override;
+    function omega_1_pi(const l:VecRecord):real;override;
   end;
 
   RectAngleClass=class(ModelClass)
@@ -69,7 +69,7 @@ type
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
     function GetLightPath(x:VecRecord):VecRecord;override;
-    function omega_1_pi:real;override;
+    function omega_1_pi(const l:VecRecord):real;override;
   end;
 
   RotateRecAngleClass=Class(RectAngleClass)
@@ -212,7 +212,7 @@ begin
   end;
 end;
 
-function SphereClass.omega_1_pi:real;
+function SphereClass.omega_1_pi(const l:VecRecord):real;
 begin
   if tanR>1 then begin
     result:=1;
@@ -232,10 +232,10 @@ begin
     XZ:begin p_.x:=H1; p_.z:=V1; hv:=CreateVec(H2-H1,0,0);wv:=CreateVec(0,0,V2-V1)*(-1);end;
     YZ:begin p_.y:=H1; p_.z:=V1; hv:=CreateVec(0,H2-H1,0);wv:=CreateVec(0,0,V2-V1)*(-1);end;
   end;
-  area:=w*h;writeln('Area=',Area,' w:h=',w:4:0,':',h:4:0);
-  inherited create(p_,e_,c_,refl_);
   nl:=VecNorm(VecCross(hv,wv));
-  writeln('nl=');VecWriteln(nl);
+  area:=w*h;writeln('Area=',Area:5:0,' w:h=',w:4:0,':',h:4:0);//これが無いとエラーで落ちる
+  inherited create(p_,e_,c_,refl_);
+//  writeln('nl=');VecWriteln(nl);
 end;
 function RectClass.intersect(const r:RayRecord):real;
 var
@@ -290,9 +290,9 @@ begin
   lp:=VecNorm(r-x);
   result:=lp;
 end;
-function RectClass.omega_1_pi:real;
+function RectClass.omega_1_pi(const l:VecRecord):real;
 begin
-  tempR:=lp*GetNorm(lp);
+  tempR:=l*GetNorm(l);
   if tempR<0 then tempR:=-tempR;
   result:=tempR*Area/(pi*dist);
 end;
@@ -338,7 +338,7 @@ begin
   result:=RAary[NeeID].lp;
 
 end;
-function RectAngleClass.omega_1_pi:real;
+function RectAngleClass.omega_1_pi(const l:VecRecord):real;
 var
   d1,d2,d3:integer;
   tP:real;
@@ -354,9 +354,9 @@ begin
 
   //厳密手順な場合はこちら。光線を3面求める必要があるので効率は落ちるが・・・
   case RAary[NeeID].RA of
-    XY:result:=  RAary[NeeID].omega_1_pi*XAreaP+RAary[NeeID+2].omega_1_pi*YAreaP+RAary[NeeID+4].omega_1_pi*ZAreaP;
-    XZ:result:=RAary[NeeID-2].omega_1_pi*XAreaP  +RAary[NeeID].omega_1_pi*YAreaP+RAary[NeeID+2].omega_1_pi*ZAreaP;
-    YZ:result:=RAary[NeeID-4].omega_1_pi*XAreaP+RAary[NeeID-2].omega_1_pi*YAreaP  +RAary[NeeID].omega_1_pi*ZAreaP;
+    XY:result:=  RAary[NeeID].omega_1_pi(l)*XAreaP+RAary[NeeID+2].omega_1_pi(l)*YAreaP+RAary[NeeID+4].omega_1_pi(l)*ZAreaP;
+    XZ:result:=RAary[NeeID-2].omega_1_pi(l)*XAreaP  +RAary[NeeID].omega_1_pi(l)*YAreaP+RAary[NeeID+2].omega_1_pi(l)*ZAreaP;
+    YZ:result:=RAary[NeeID-4].omega_1_pi(l)*XAreaP+RAary[NeeID-2].omega_1_pi(l)*YAreaP  +RAary[NeeID].omega_1_pi(l)*ZAreaP;
   end;(*case*)
 
 end;
