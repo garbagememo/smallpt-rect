@@ -233,7 +233,8 @@ begin
     YZ:begin p_.y:=H1; p_.z:=V1; hv:=CreateVec(0,H2-H1,0);wv:=CreateVec(0,0,V2-V1)*(-1);end;
   end;
   nl:=VecNorm(VecCross(hv,wv));
-  area:=w*h;writeln('Area=',Area:5:0,' w:h=',w:4:0,':',h:4:0);//これが無いとエラーで落ちる
+  area:=w*h;
+//  writeln('Area=',Area:5:0,' w:h=',w:4:0,':',h:4:0);//これが無いとエラーで落ちる
   inherited create(p_,e_,c_,refl_);
 //  writeln('nl=');VecWriteln(nl);
 end;
@@ -386,10 +387,11 @@ constructor RotateRecAngleClass.Create(Axis:VecRecord;deg:real;p1,p2,e_,c_:VecRe
 begin
   Quat.CreateRotate(Axis,deg);
   RevQuat:=Quat.conj;
+  inherited Create(p1,p2,e_,c_,refl_);
 end;
 function RotateRecAngleClass.intersect(const r:RayRecord):real;
 begin
-  result:=inherited intersect(CreateRay(RevQuat.rotate(r.o),RevQuat.rotate(r.d)) );
+  result:=inherited intersect(CreateRay(RevQuat.rotate(r.o-RACenter)+RACenter,RevQuat.rotate(r.d)) );
 end;
 function RotateRecAngleClass.GetNorm(x:VecRecord):VecRecord;
 begin
