@@ -76,16 +76,16 @@ begin
 end;
 function QuatRecord.Rotate(p:VecRecord):VecRecord;
 var
-  x1,y1,z1,w1:real;
+  x1,y1,z1,w1,xx,yy,zz,ww:real;
 begin
   x1:=x;y1:=y;z1:=z;w1:=w;
-  x := (w1 * p.x + y1 * p.z) - (z1 * p.y);
-  y := (w1 * p.y + z1 * p.x) - (x1 * p.z);
-  z := (w1 * p.z + x1 * p.y) - (y1 * p.x);
-  w := (x1 * p.x + y1 * p.y) - (z1 * p.z);
-  result:=CreateVec(((w * x1 + x * w1) -y * z1) + z * y1,
-                    ((w * y1 + y * w1) -z * x1) + x * z1,
-                    ((w * z1 + z * w1) -x * y1) + y * x1);
+  xx := (w1 * p.x + y1 * p.z) - (z1 * p.y);
+  yy := (w1 * p.y + z1 * p.x) - (x1 * p.z);
+  zz := (w1 * p.z + x1 * p.y) - (y1 * p.x);
+  ww := (x1 * p.x + y1 * p.y) - (z1 * p.z);
+  result:=CreateVec(((ww * x1 + xx * w1) -yy * z1) + zz * y1,
+                    ((ww * y1 + yy * w1) -zz * x1) + xx * z1,
+                    ((ww * z1 + zz * w1) -xx * y1) + yy * x1);
 
 end;
 function QuatRecord.QuatMul(q:QuatRecord):QuatRecord;
