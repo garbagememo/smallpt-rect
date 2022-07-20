@@ -5,9 +5,11 @@ unit uVect;
 interface
 
 uses
-    sysutils,uBMP,math;
+    sysutils,math;
 type
-    RefType=(DIFF,SPEC,REFR);// material types, used in radiance()
+   rgbColor=record b,g,r:byte; end;
+
+   RefType=(DIFF,SPEC,REFR);// material types, used in radiance()
 {
     DIFFUSE,    // 完全拡散面。いわゆるLambertian面。
     SPECULAR,   // 理想的な鏡面。
