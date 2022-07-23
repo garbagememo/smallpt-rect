@@ -16,6 +16,10 @@ const
   DefaultSamples = 16;
 type
 
+  uvwVecRecord=record
+    u,v,w:VecRecord;
+  end;
+
   VertexRecord=record
     cf:VecRecord;
     p,n:VecRecord;
@@ -28,7 +32,7 @@ type
     p,e,c:VecRecord;// position. emission,color
     refl:RefType;
     isLight:boolean;
-    uvw:uvwVecRecord;
+    uvwRef:uvwVecRecord;
     lp:VecRecord;
     constructor Create(p_,e_,c_:VecRecord;refl_:RefType);
     function intersect(const r:RayRecord):real;virtual;abstract;
@@ -96,12 +100,17 @@ type
     cam       : CameraRecord;
   end;
 
+  function uvwVecGet(const l:VecRecord):uvwVecRecord;inline;
+  function VecSphereRef(const w:VecRecord;var uvw:uvwVecRecord):VecRecord;(*vを法線に半球状に分布する光線を求める*)
+
 
 function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
 var
   mdl:TList;
   cam:CameraRecord;
 implementation
+
+
 function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
 var
   d:real;
@@ -117,6 +126,37 @@ begin
   end;
   result:=(t<inf);
 end;
+
+
+function uvwVecGet(const l:VecRecord):uvwVecRecord;inline;
+begin
+  result.w:=l;
+  if abs(result.w.x)>0.1 then
+    result.u:=VecNorm(CreateVec(0,1,0)/result.w) 
+  else
+    result.u:=VecNorm(CreateVec(1,0,0)/result.w) ;
+  result.v:=result.w/result.u;
+end;
+
+function VecSphereRef(const w:VecRecord;var uvw:uvwVecRecord):VecRecord;inline;
+var
+  r1,r2,r2s:real;
+  u,v:VecRecord;
+begin
+  uvw:=uvwVecGet(w);
+  r1:=2*PI*random;r2:=random;r2s:=sqrt(r2);
+  {  
+     if abs(w.x)>0.1 then
+     u:=VecNorm(CreateVec(0,1,0)/w) 
+     else
+     u:=VecNorm(CreateVec(1,0,0)/w) ;
+     v:=w/u;
+  }
+  result := VecNorm(uvw.u*cos(r1)*r2s + uvw.v*sin(r1)*r2s + uvw.w*sqrt(1-r2));
+end;
+
+
+
 
 procedure CameraRecord.Setup(o_,d_: VecRecord;w_,h_:integer;ratio_,dist_:real);
 begin
@@ -148,10 +188,14 @@ begin
 end;
 
 
+
 constructor ModelClass.Create(p_,e_,c_:VecRecord;refl_:RefType);
 begin
   p:=p_;e:=e_;c:=c_;refl:=refl_;if VecSQR(e)>0 then isLight:=TRUE else isLight:=false;
 end;
+
+
+
 constructor SphereClass.Create(rad_:real;p_,e_,c_:VecRecord;refl_:RefType);
 begin
   rad:=rad_;rad2:=rad*rad; inherited create(p_,e_,c_,refl_);
@@ -179,6 +223,7 @@ begin
     end;
   end;
 end;
+
 function SphereClass.GetNorm(x:VecRecord):VecRecord;
 begin
   result:=VecNorm(x-p)
@@ -189,6 +234,7 @@ function SphereClass.GetLightPath(x:VecRecord):VecRecord;
 var
   eps1,eps2,eps2s,ss,cc:real;
   cos_a,sin_a,phi:real;
+  uvw:uvwVecRecord;
 begin
   lp:=p-x;
   uvw:=uvwVecGet(lp);
@@ -197,9 +243,9 @@ begin
     (*半球の内外=cos_aがマイナスとsin_aが＋、－で場合分け*)
     (*半球内部なら乱反射した寄与全てを取ればよい・・はず*)
 
-    eps1:=M_2PI*random;eps2:=random;eps2s:=sqrt(eps2);
+    eps1:=2*pi*random;eps2:=random;eps2s:=sqrt(eps2);
     sincos(eps1,ss,cc);
-    result:=VecNorm(uvw.u*(cc*eps2s)+uvw.v*(ss*eps2s)+uvw.w*sqrt(1-eps2));
+    result:=VecNorm(uvwRef.u*(cc*eps2s)+uvwRef.v*(ss*eps2s)+uvwRef.w*sqrt(1-eps2));
   end
   else begin //半球外部の場合;
     cos_a_max := sqrt(1-tanR );
