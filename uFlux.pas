@@ -4,11 +4,14 @@ Unit uFlux;
 {$modeswitch advancedrecords}
 INTERFACE
 
-uses SysUtils,Classes,uVect,uBMP,uModel,uScene,Math;
+uses SysUtils,Classes,uVect,uModel,uScene,Math;
 
 type 
 
   TFluxClass=class
+    mdl:TList;
+    cam:CameraRecord;
+    function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
     function Radiance(r : RayRecord;Depth:integer ):VecRecord;Virtual;
   end;                
   TNEEFluxClass=class(TFluxClass)
@@ -19,6 +22,23 @@ type
   end;                
 
 IMPLEMENTATION
+
+function TFluxClass.Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
+var
+  d:real;
+  i:integer;
+begin
+  t:=INF;
+  for i:=0 to mdl.count-1 do begin
+    d:=SphereClass(mdl[i]).intersect(r);
+    if d<t then begin
+      t:=d;
+      id:=i;
+    end;
+  end;
+  result:=(t<inf);
+end;
+
 
 function TFluxClass.radiance( r:RayRecord;depth:integer):VecRecord;
 var

@@ -5,7 +5,7 @@ program smallptrect;
 uses SysUtils,Classes,uVect,uBMP,uModel,uScene,uFlux,Math,getopts;
 
 var
-   x,y,sx,sy,s       : integer;
+   x,y,sx,sy,s,cc    : integer;
    w,h,samps,height  : integer;
    temp              : VecRecord;
    tColor,r: VecRecord;
@@ -81,8 +81,11 @@ begin
 
   SRList.InitSceneRecord(w,h);
   SceneRec:=SRList.GetScene(ModelID);
-  mdl:=SceneRec.mdl;
-  cam:=SceneRec.cam;
+  RT.mdl:=TList.Create;
+  for cc:=0 to SceneRec.mdl.count-1 do begin
+    RT.mdl.add(ModelClass(SceneRec.mdl[cc]).DeepCopy);
+  end;
+  RT.cam:=SceneRec.cam;
   
   
   T1:=Time;
@@ -96,7 +99,7 @@ begin
       for sy := 0 to 1 do begin
         for sx := 0 to 1 do begin
           for s := 0 to samps - 1 do begin
-            temp:=Rt.Radiance(Cam.Ray(x,y,sx,sy), 0);
+            temp:=Rt.Radiance(RT.Cam.Ray(x,y,sx,sy), 0);
             temp:= temp/ samps;
             r:= r+temp;
           end;(*samps*)

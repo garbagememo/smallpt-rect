@@ -5,7 +5,7 @@
 interface
 
 uses
-    sysutils,uBMP,math,uVect;
+    sysutils,math,uVect;
 type
     QuatRecord=record
         x,y,z,w:real;
