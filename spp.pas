@@ -80,7 +80,7 @@ begin
   Randomize;
 
   SRList.InitSceneRecord(w,h);
-  SceneRec:=SRList.GetScene(ModelID);
+  SceneRec:=SRList.SRL[ModelID];
   RT.mdl:=TList.Create;
   for cc:=0 to SceneRec.mdl.count-1 do begin
     RT.mdl.add(ModelClass(SceneRec.mdl[cc]).DeepCopy);
