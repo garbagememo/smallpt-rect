@@ -8,6 +8,15 @@ uses SysUtils,Classes,uVect,uModel,uScene,Math;
 
 type 
 
+  VertexRecord=record
+    isActive:boolean;(*当面Sphere以外実装できないので・・・*)
+    cf:VecRecord;
+    p,n:VecRecord;
+    rad2:real;
+    id:integer;
+  //omega,ts,tr,preTR,preRad2:real;//debug
+  end;
+
   TFluxClass=class
     mdl:TList;
     cam:CameraRecord;
@@ -20,7 +29,10 @@ type
   TLoopFluxClass=class(TFluxClass)
     function Radiance(r : RayRecord;Depth:integer ):VecRecord;OverRide;
   end;                
-
+  TLightPathFluxClass=Class(TFluxClass)
+    function CreateLight(id:integer):VertexRecord;
+  end;
+  
 IMPLEMENTATION
 
 function TFluxClass.Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
@@ -308,6 +320,25 @@ begin
     end;(*CASE*)
   end;(*WHILE LOOP *)
 end;
+
+function TLightPathFluxClass.CreateLight(ID:INTEGER):VertexRecord;
+VAR
+  s:ModelClass;
+  p,t,st:real;
+  n:VecRecord;
+BEGIN
+  s:=ModelClass(mdl[ID]);
+  if (s is SphereClass)=false then begin result.isActive:=FALSE;exit;end;
+  result.isActive:=true;
+  result.cf:=SphereClass(s).e;
+  p:=2.0*PI*random;t:=2.0*arccos(sqrt(1.0-random));
+  st:=sin(t);
+  result.n:=VecNorm(CreateVec(cos(p)*st,cos(t),sin(p)*st) );
+  result.p:=s.p+result.n*SphereClass(s).rad;
+  result.rad2:=SphereClass(s).rad2;
+  result.id:=ID;
+  IF (result.p-cam.o)*result.n<0 THEN result.n:=result.n*-1;
+END;
 
 BEGIN
 END.
