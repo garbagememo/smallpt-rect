@@ -2,7 +2,7 @@ program smallptrect;
 {$MODE objfpc}{$H+}
 {$INLINE ON}
 {$modeswitch advancedrecords}
-uses SysUtils,Classes,uVect,uBMP,uModel,uScene,uFlux,Math,getopts;
+uses SysUtils,Classes,uVect,uBMP,uModel,uScene,uFlux,uLightPath,Math,getopts;
 
 type
   FluxOptionRecord=Record
@@ -77,6 +77,8 @@ begin
                     FluxOpt.AlgolID:=3;
                   end;
               4:begin
+                  Rt:=TLightPathFluxClass.Create;
+                  writeln('Render=Light Path');
                   FluxOpt.AlgolID:=4;
                 end;
               else begin

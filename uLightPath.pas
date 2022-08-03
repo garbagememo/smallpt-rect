@@ -4,7 +4,7 @@ unit uLightPath;
 {$INLINE ON}
 {$modeswitch advancedrecords}
 interface
-uses SysUtils,Classes,uVect,uModel,Math;
+uses SysUtils,Classes,uVect,uModel,uFlux,Math;
 
 const 
  LightPathMax=5;
@@ -19,11 +19,16 @@ type
   LightPathList=record
     LMax:integer;
     ary:array[0..255] of LightPathRecord;
-    SR: SceneRecord;
+    mdl:TList;
     procedure Clear;
     procedure Add(LP : LightPathRecord);
-    procedure SetScene(sr_ :SceneRecord );
-    procedure CreateLigthPath;
+  end;
+
+  TLightPathFluxClass=Class(TFluxClass)
+    LP:LightPathRecord;
+    LPList:LightPathList;
+    procedure CreateLightPath;
+    function Radiance( r:RayRecord;depth:INTEGER):VecRecord;override;
   end;
 
 
@@ -44,11 +49,6 @@ begin
   ary[LPMax]:=v_;
 end;
 
-procedure LightPathList.SetScene(sr_:SceneRecord);
-begin
-  SR:=sr_;
-end;
-
 procedure LightPathList.Clear;
 begin
   LMax:=-1;
@@ -60,9 +60,8 @@ begin
   Ary[LMax]:=LP;
 end;
 
-procedure LightPathList.CreateLigthPath;
+procedure TLightPathFluxCLass.CreateLightPath;
 var
-  LP:LightPathRecord;
   tVert,cV:VertexRecord;
   i,depth,k:integer;
   r:RayRecord;
@@ -77,19 +76,23 @@ var
   tu,tv,sw:VecRecord;
   cl,cf:VecRecord;
 begin
-  for i:=0 to SR.spl.Count-1 do begin
-    if SphereClass(SR.spl[i]).isLight then begin
-      tVert:=SR.GenLight(i);
+  LPList.Clear;
+  for i:=0 to mdl.Count-1 do begin
+    if ModelClass(mdl[i]).isLight then begin
+      tVert:=ModelClass(mdl[i]).CreateLight(i,cam.o);
       LP.Clear;
       LP.Add(tVert);
-      r.d:=tVert.n;//球であるからこその省略
+      r.d:=tVert.n;//CreateLightで帳尻を合わせる予定。現在は球であるからこその省略
       r.o:=tVert.p;
       depth:=1;
       repeat
         cf:=tVert.cf;
-        if SR.intersect(r,t,id) =false then BREAK;
+//球以外無視する雑な構成
+        if (ModelClass(mdl[i]) is SphereClass)=false then break;
+        
+        if intersect(r,t,id) =false then BREAK;
 //get radiance
-        obj:=SphereClass(SR.spl[id]);
+        obj:=SphereClass(mdl[id]);
         if obj.isLight then Break;
         x:=r.o+r.d*t; n:=VecNorm(x-obj.p); f:=obj.c;
         nrd:=n*r.d;
@@ -148,8 +151,8 @@ begin
 //OMEGA 算出
         if obj.REFL=DIFF then begin
           sw:=r.d;
-          tr:=VecSQR(SphereClass(SR.spl[tVert.id]).p-x);
-          tr:=SphereClass(SR.spl[tVert.id]).rad2/tr;
+          tr:=VecSQR(SphereClass(mdl[tVert.id]).p-x);
+          tr:=SphereClass(mdl[tVert.id]).rad2/tr;
           ts:=sw*cV.n;
           if ts<0 then ts:=-ts;
           if tr>1 then begin
@@ -169,12 +172,12 @@ begin
         tVert:=cV;
         Inc(Depth)
       until Depth>=LightPathMax;
-      Add(LP);
+      LPList.Add(LP);
     end;(*is Light*)
   end;(*obj毎*)
 end;
-
-function Radiance( r:RayRecord;depth:INTEGER):VecRecord;
+  
+function TLightPathFluxClass.Radiance( r:RayRecord;depth:INTEGER):VecRecord;
 VAR
   id,i,j,tid:INTEGER;
   obj,s:SphereClass;
@@ -202,11 +205,11 @@ VAR
       FOR j:=0 TO LPRec.LPMax DO BEGIN
         tVert:=LPRec.Ary[j];
         IF tVert.id=tid THEN continue;//光源だったら飛ばすに変えるべき
-        s:=SphereClass(SceneRec.spl[tVert.id]);
+        s:=SphereClass(mdl[tVert.id]);
         sw:=VecNorm(tVert.p-x);
         tRay.d:=sw;tRay.o:=x;
         IF sw*nl<0 THEN continue;//裏側につきぬけないように
-        IF SceneRec.intersect(tRay,t,id)=FALSE THEN continue;
+        IF intersect(tRay,t,id)=FALSE THEN continue;
         IF id<>tVert.id THEN CONTINUE;//影がある？
         tr:=VecSQR(s.p-x);//ここが怖いところ。
         tr:=tVert.rad2/tr;
@@ -225,17 +228,17 @@ VAR
   END;
 BEGIN
   LPList.Clear;
-  LPList.GetLigthPath;//////LPL
+  CreateLightPath;//////LPL
 //writeln(' DebugY=',DebugY,' DebugX=',DebugX);
   depth:=0;
   id:=0;cl:=ZeroVec;cf:=CreateVec(1,1,1);E:=1;
   WHILE (TRUE) DO BEGIN
     Inc(depth);
-    IF SceneRec.intersect(r,t,id)=FALSE THEN BEGIN
+    IF intersect(r,t,id)=FALSE THEN BEGIN
        result:=cl;
        EXIT;
     END;
-    obj:=SphereClass(SceneRec.spl[id]);
+    obj:=SphereClass(mdl[id]);
     x:=r.o+r.d*t; n:=VecNorm(x-obj.p); f:=obj.c;
     IF n*r.d<0 THEN nl:=n ELSE nl:=n*-1;
     IF (f.x>f.y)AND(f.x>f.z) THEN p:=f.x ELSE IF f.y>f.z THEN p:=f.y ELSE p:=f.z;

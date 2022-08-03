@@ -16,17 +16,19 @@ const
   DefaultSamples = 16;
 type
 
-  uvwVecRecord=record
-    u,v,w:VecRecord;
-  end;
-
   VertexRecord=record
+    isActive:boolean;(*当面Sphere以外実装できないので・・・*)
     cf:VecRecord;
     p,n:VecRecord;
     rad2:real;
     id:integer;
   //omega,ts,tr,preTR,preRad2:real;//debug
   end;
+
+  uvwVecRecord=record
+    u,v,w:VecRecord;
+  end;
+
 
   ModelClass=class
     p,e,c:VecRecord;// position. emission,color
@@ -40,6 +42,7 @@ type
     function GetLightPath(x:VecRecord):VecRecord;virtual;abstract;
     function omega_1_pi(const l:VecRecord):real;virtual;abstract;//半球に占める立法角の割合
     function DeepCopy:ModelClass;virtual;abstract;
+    function CreateLight(id:integer;o:VecRecord):VertexRecord;virtual;abstract;
   end;
 
   SphereClass=class(ModelClass)
@@ -52,6 +55,7 @@ type
     function GetNorm(x:VecRecord):VecRecord;override;
     function GetLightPath(x:VecRecord):VecRecord;override;
     function omega_1_pi(const l:VecRecord):real;override;
+    function CreateLight(id:integer;o:VecRecord):VertexRecord;override;
   end;
 
   RectClass=class(ModelClass)
@@ -221,6 +225,21 @@ function SphereClass.GetNorm(x:VecRecord):VecRecord;
 begin
   result:=VecNorm(x-p)
 end;
+
+function SphereClass.CreateLight(id:integer;o:VecRecord):VertexRecord;
+VAR
+  pr,t,st:real;
+  n:VecRecord;
+BEGIN
+  result.cf:=e;
+  pr:=2.0*PI*random;t:=2.0*arccos(sqrt(1.0-random));
+  st:=sin(t);
+  result.n:=VecNorm(CreateVec(cos(pr)*st,cos(t),sin(pr)*st) );
+  result.p:=p+(result.n*rad);
+  result.rad2:=rad2;
+  result.id:=id;
+  IF (result.p-o)*result.n<0 THEN result.n:=result.n*-1;
+END;
 
 
 function SphereClass.GetLightPath(x:VecRecord):VecRecord;

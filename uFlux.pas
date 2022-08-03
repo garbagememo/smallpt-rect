@@ -8,15 +8,6 @@ uses SysUtils,Classes,uVect,uModel,uScene,Math;
 
 type 
 
-  VertexRecord=record
-    isActive:boolean;(*当面Sphere以外実装できないので・・・*)
-    cf:VecRecord;
-    p,n:VecRecord;
-    rad2:real;
-    id:integer;
-  //omega,ts,tr,preTR,preRad2:real;//debug
-  end;
-
   TFluxClass=class
     mdl:TList;
     cam:CameraRecord;
