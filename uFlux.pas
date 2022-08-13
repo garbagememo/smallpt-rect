@@ -9,8 +9,7 @@ uses SysUtils,Classes,uVect,uModel,uScene,Math;
 type 
 
   TFluxClass=class
-    mdl:TList;
-    cam:CameraRecord;
+    Scene:SceneRecord;
     function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
     function Radiance(r : RayRecord;Depth:integer ):VecRecord;Virtual;
   end;                
@@ -29,8 +28,8 @@ var
   i:integer;
 begin
   t:=INF;
-  for i:=0 to mdl.count-1 do begin
-    d:=SphereClass(mdl[i]).intersect(r);
+  for i:=0 to Scene.mdl.count-1 do begin
+    d:=SphereClass(Scene.mdl[i]).intersect(r);
     if d<t then begin
       t:=d;
       id:=i;
@@ -56,7 +55,7 @@ begin
   if intersect(r,t,id)=false then begin
     result:=ZeroVec;exit;
   end;
-  obj:=ModelClass(mdl[id]);
+  obj:=ModelClass(Scene.mdl[id]);
   x:=r.o+r.d*t; n:=obj.GetNorm(x); f:=obj.c;
   if VecDot(n,r.d)<0 then nl:=n else nl:=n*-1;
   if (f.x>f.y)and(f.x>f.z) then
@@ -134,7 +133,7 @@ begin
       result:=cl;
       exit;
     end;
-    obj:=ModelClass(mdl[id]);
+    obj:=ModelClass(Scene.mdl[id]);
     x:=r.o+r.d*t; n:=obj.GetNorm(x); f:=obj.c;
     if n*r.d<0 then nl:=n else nl:=n*-1;
     if (f.x>f.y)and(f.x>f.z) then p:=f.x else if f.y>f.z then p:=f.y else p:=f.z;
@@ -158,8 +157,8 @@ begin
           // Loop over any lights
           EL:=ZeroVec;
           tid:=id;
-          for i:=0 to mdl.count-1 do begin
-            s:=ModelClass(mdl[i]);
+          for i:=0 to Scene.mdl.count-1 do begin
+            s:=ModelClass(Scene.mdl[i]);
             if (i=tid) then begin
               continue;
             end;
@@ -247,7 +246,7 @@ begin
       result:=cl;
       exit;
     end;
-    obj:=ModelClass(mdl[id]);
+    obj:=ModelClass(Scene.mdl[id]);
     x:=r.o+r.d*t; n:=obj.GetNorm(x); f:=obj.c;
     nrd:=n*r.d;
     if nrd<0 then nl:=n else nl:=n*-1;

@@ -5,8 +5,8 @@ unit uModel;
 interface
 uses SysUtils,Classes,uVect,uQuat,math;
 
-//NEEの場合、cosθｘcosφ×天球中の立法角で光源の影響を受けるとする
-//cosθｘcosφ×A^2/dist^2/π 球だとcosθ×πr^2/dist^2/π またはcosθ×２ｘ(1-cos_a_max)
+//NEEの場合、cosθ*cosφ*天球中の立法角で光源の影響を受けるとする
+//cosθ*cosφ×A^2/dist^2/π 球だとcosθ*πr^2/dist^2/π またはcosθ*2(1-cos_a_max)
 
 const
   eps            = 1e-4;
@@ -16,17 +16,20 @@ const
   DefaultSamples = 16;
 type
 
-  uvwVecRecord=record
-    u,v,w:VecRecord;
-  end;
-
   VertexRecord=record
+    isActive:boolean;(*当面Sphere以外実装できないので・・・*)
     cf:VecRecord;
     p,n:VecRecord;
     rad2:real;
     id:integer;
+    procedure monitor;
   //omega,ts,tr,preTR,preRad2:real;//debug
   end;
+
+  uvwVecRecord=record
+    u,v,w:VecRecord;
+  end;
+
 
   ModelClass=class
     p,e,c:VecRecord;// position. emission,color
@@ -37,9 +40,13 @@ type
     constructor Create(p_,e_,c_:VecRecord;refl_:RefType);
     function intersect(const r:RayRecord):real;virtual;abstract;
     function GetNorm(x:VecRecord):VecRecord;virtual;abstract;
-    function GetLightPath(x:VecRecord):VecRecord;virtual;abstract;
+    function GetLightPath(const x:VecRecord):VecRecord;virtual;abstract;
+    function GetVertexLightPath(const x:VecRecord):VecRecord;virtual;abstract;
     function omega_1_pi(const l:VecRecord):real;virtual;abstract;//半球に占める立法角の割合
     function DeepCopy:ModelClass;virtual;abstract;
+    function CreateLight(id:integer;o:VecRecord):VertexRecord;virtual;abstract;
+    function GetLightOMEGA(x:VecRecord):real;virtual;abstract;
+    function GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;virtual;abstract;
   end;
 
   SphereClass=class(ModelClass)
@@ -50,34 +57,43 @@ type
     function DeepCopy:ModelClass;override;
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
-    function GetLightPath(x:VecRecord):VecRecord;override;
+    function GetLightPath(const x:VecRecord):VecRecord;override;
+    function GetVertexLightPath(const x:VecRecord):VecRecord;override;
     function omega_1_pi(const l:VecRecord):real;override;
+    function CreateLight(id:integer;o:VecRecord):VertexRecord;override;
+    function GetLightOMEGA(x:VecRecord):real;override;
+    function GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;override;
   end;
 
   RectClass=class(ModelClass)
     H1,H2,V1,V2,w,h,area,dist,tempR:Real;
     RA:RectAxisType;
-    nl:VecRecord;
+    nl,hv,wv:VecRecord;
     constructor Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
     function DeepCopy:ModelClass;override;
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
-    function GetLightPath(x:VecRecord):VecRecord;override;
+    function GetLightPath(const x:VecRecord):VecRecord;override;
+    function GetVertexLightPath(const x:VecRecord):VecRecord;override;
     function omega_1_pi(const l:VecRecord):real;override;
+    function CreateLight(id:integer;o:VecRecord):VertexRecord;override;
   end;
 
   RectAngleClass=class(ModelClass)
     RAary:array[0..5] of RectClass;
     HitID:integer;
     NeeID:integer;    //NEE用変数
+    LPid:integer;//LightPath用変数
     RACenter:VecRecord;
     TotalArea,XAreaP,YAreaP,ZAreaP,XpYAreaP:real;
     constructor Create(p1,p2,e_,c_:VecRecord;refl_:RefType);
     function DeepCopy:ModelClass;override;
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
-    function GetLightPath(x:VecRecord):VecRecord;override;
+    function GetLightPath(const x:VecRecord):VecRecord;override;
     function omega_1_pi(const l:VecRecord):real;override;
+    function CreateLight(id:integer;o:VecRecord):VertexRecord;override;
+    function GetVertexLightPath(const x:VecRecord):VecRecord;override;
   end;
 
   RotateRecAngleClass=class(RectAngleClass)
@@ -222,8 +238,23 @@ begin
   result:=VecNorm(x-p)
 end;
 
+function SphereClass.CreateLight(id:integer;o:VecRecord):VertexRecord;
+VAR
+  pr,t,st:real;
+  n:VecRecord;
+BEGIN
+  result.cf:=e;
+  pr:=2.0*PI*random;t:=2.0*arccos(sqrt(1.0-random));
+  st:=sin(t);
+  result.n:=VecNorm(CreateVec(cos(pr)*st,cos(t),sin(pr)*st) );
+  result.p:=p+(result.n*rad);
+  result.rad2:=rad2;
+  result.id:=id;
+  IF (result.p-o)*result.n<0 THEN result.n:=result.n*-1;
+END;
 
-function SphereClass.GetLightPath(x:VecRecord):VecRecord;
+
+function SphereClass.GetLightPath(const x:VecRecord):VecRecord;
 var
   eps1,eps2,eps2s,ss,cc:real;
   cos_a,sin_a,phi:real;
@@ -251,19 +282,47 @@ begin
   end;
 end;
 
+function SphereClass.GetVertexLightPath(const x:VecRecord):VecRecord;
+begin
+  tanR:=rad2/( VecSQR(p-x) );
+end;
+
 function SphereClass.omega_1_pi(const l:VecRecord):real;
 begin
   if tanR>1 then begin
     result:=1;
   end
   else begin
+    cos_a_max := sqrt(1-tanR );
     result:=2*PI/PI*(1-cos_a_max);//result:=rad2/d^2
   end;
 end;
+
+function SphereClass.GetLightOMEGA(x:VecRecord):real;
+var
+  tr:real;
+begin
+  tr:=rad2/(VecSQR(p-x));//これはtVertで指定されているのでpで良い
+  if tr>1 then
+    result:=1
+  else begin
+    result:=2*PI/PI*(1-sqrt(1-tr) );
+  end;
+end;
+
+function SphereClass.GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;
+var
+  tr:real;
+begin
+  tr:=VecSQR(p-x);//ここが怖いところ。
+  tr:=Vert.rad2/tr;
+  if tr>1 then 
+    result:=1
+  else
+    result:=2*pi/pi*(1-sqrt(1-tr));
+end;
           
 constructor RectClass.Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecRecord;refl_:RefType);
-var
-  hv,wv:VecRecord;
 begin
   RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;h:=H2-H1;w:=V2-V1;
   case RA of
@@ -273,7 +332,7 @@ begin
   end;
   nl:=VecNorm(VecCross(hv,wv));
   area:=w*h;
-//  writeln('Area=',Area:5:0,' w:h=',w:4:0,':',h:4:0);//これが無いとエラーで落ちる
+//  writeln('Area=',Area:5:0,' w:h=',w:4:0,':',h:4:0);
   inherited create(p_,e_,c_,refl_);
 //  writeln('nl=');VecWriteln(nl);
 end;
@@ -321,7 +380,20 @@ function RectClass.GetNorm(x:VecRecord):VecRecord;
 begin
   result:=nl;
 end;
-function RectClass.GetLightPath(x:VecRecord):VecRecord;
+function RectClass.CreateLight(id:integer;o:VecRecord):VertexRecord;
+var
+  uvw:uvwVecRecord;
+begin
+  result.n:=VecSphereRef(nl,uvw);
+  result.p:=p+hv*random+wv*random;
+  result.id:=id;
+  result.cf:=e;
+  
+   //RectAngle時にうまく動かないのでコメントアウトするしか・・??
+  if random>0.5 then result.n:=result.n*-1;
+end;
+
+function RectClass.GetLightPath(const x:VecRecord):VecRecord;
 var
   eps1,eps2:real;
   r:VecRecord;
@@ -336,6 +408,11 @@ begin
   lp:=VecNorm(r-x);
   result:=lp;
 end;
+function RectClass.GetVertexLightPath(const x:VecRecord):VecRecord;
+begin
+  result:=GetLightPath(x);
+end;
+
 function RectClass.omega_1_pi(const l:VecRecord):real;
 begin
   tempR:=l*GetNorm(l);
@@ -363,12 +440,29 @@ begin
   ZAreaP:=RAary[4].Area/TotalArea;
   XpYAreaP:=(RAary[0].Area+RAary[2].Area)/TotalArea;
 end;
+
+function RectAngleClass.CreateLight(id:integer;o:VecRecord):VertexRecord;
+var
+  eps:real;
+  i:integer;
+begin
+  eps:=random;
+  if eps<XAreaP then (*見える3面に対して確率でどの面になるかをとっている*)
+    LPid:=0 
+  else if eps<XpYAreaP then 
+    LPid:=2
+  else
+    LPid:=4;
+  if random>0.5 then Inc(LPid);
+  result:=RAary[LPid].CreateLight(id,o);
+end;
+
 function RectAngleClass.DeepCopy:ModelClass;
 begin
   result:=RectAngleClass.Create((RACenter*2)-p,p,e,c,refl);
 end;
 
-function RectAngleClass.GetLightPath(x:VecRecord):VecRecord;
+function RectAngleClass.GetLightPath(const x:VecRecord):VecRecord;
 var
   eps:real;
   i:integer;
@@ -386,8 +480,16 @@ begin
   if (NeeID mod 2)=0 then i:=0 else i:=1;
   RAary[i].GetLightPath(x);RAary[i+2].GetLightPath(x);RAary[i+4].GetLightPath(x);
   result:=RAary[NeeID].lp;
-
 end;
+function RectAngleClass.GetVertexLightPath(const x:VecRecord):VecRecord;
+var
+  i:integer;
+begin
+  NeeID:=LPid;//これがかっこ悪いが・・・
+  if (NeeID mod 2)=0 then i:=0 else i:=1;
+  RAary[i].GetLightPath(x);RAary[i+2].GetLightPath(x);RAary[i+4].GetLightPath(x);
+  result:=RAary[NeeID].lp;
+end;  
 function RectAngleClass.omega_1_pi(const l:VecRecord):real;
 var
   d1,d2,d3:integer;
@@ -404,11 +506,10 @@ begin
 
   //厳密手順な場合はこちら。光線を3面求める必要があるので効率は落ちるが・・・
   case RAary[NeeID].RA of
-    XY:result:=  RAary[NeeID].omega_1_pi(l)*XAreaP+RAary[NeeID+2].omega_1_pi(l)*YAreaP+RAary[NeeID+4].omega_1_pi(l)*ZAreaP;
-    XZ:result:=RAary[NeeID-2].omega_1_pi(l)*XAreaP  +RAary[NeeID].omega_1_pi(l)*YAreaP+RAary[NeeID+2].omega_1_pi(l)*ZAreaP;
-    YZ:result:=RAary[NeeID-4].omega_1_pi(l)*XAreaP+RAary[NeeID-2].omega_1_pi(l)*YAreaP  +RAary[NeeID].omega_1_pi(l)*ZAreaP;
+    XY:result:=RAary[NeeID  ].omega_1_pi(l)*XAreaP+RAary[NeeID+2].omega_1_pi(l)*YAreaP+RAary[NeeID+4].omega_1_pi(l)*ZAreaP;
+    XZ:result:=RAary[NeeID-2].omega_1_pi(l)*XAreaP+RAary[NeeID  ].omega_1_pi(l)*YAreaP+RAary[NeeID+2].omega_1_pi(l)*ZAreaP;
+    YZ:result:=RAary[NeeID-4].omega_1_pi(l)*XAreaP+RAary[NeeID-2].omega_1_pi(l)*YAreaP+RAary[NeeID  ].omega_1_pi(l)*ZAreaP;
   end;(*case*)
-
 end;
 
 function RectAngleClass.intersect(const r:RayRecord):real;
@@ -454,6 +555,13 @@ begin
   result:=Quat.Rotate(inherited GetNorm(x) );
 end;
 
+procedure VertexRecord.monitor;
+begin
+  write('cf=');VecWriteln(cf);
+  write('p=');VecWriteln(p);
+  write('n=');VecWriteln(n);
+  writeln(' rad2=',rad2:8:2,' id=',id);
+end;
 
 begin
 end.
