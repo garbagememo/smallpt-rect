@@ -18,6 +18,8 @@ type
     SceneName : string;
     mdl       : TList;
     cam       : CameraRecord;
+    function Intersect(CONST r:RayRecord;VAR t:real; VAR id:INTEGER):BOOLEAN;
+    function GenLight(LightID:INTEGER):VertexRecord;
   end;
   SceneRecordList=record
     MaxIndex:integer;
@@ -30,6 +32,44 @@ var
   SRList:SceneRecordList;
   
 implementation
+
+FUNCTION SceneRecord.Intersect(CONST r:RayRecord;VAR t:real; VAR id:INTEGER):BOOLEAN;
+VAR
+  d:real;
+  i:INTEGER;
+BEGIN
+  t:=INF;
+  FOR i:=0 TO mdl.count-1 DO BEGIN
+    d:=ModelClass(mdl[i]).intersect(r);
+    IF d<t THEN BEGIN
+      t:=d;
+      id:=i;
+    END;
+  END;
+  result:=(t<inf);
+END;
+
+FUNCTION SceneRecord.GenLight(LightID:INTEGER):VertexRecord;
+VAR
+  s:SphereClass;
+  p,t,st:real;
+  n:VecRecord;
+BEGIN
+  result:=ModelClass(mdl[LightID]).CreateLight(LightID,cam.o);
+{
+  s:=SphereClass(mdl[LightID]);
+  result.cf:=s.e;
+  p:=2.0*PI*random;t:=2.0*arccos(sqrt(1.0-random));
+  st:=sin(t);
+  result.n:=VecNorm(CreateVec(cos(p)*st,cos(t),sin(p)*st) );
+  result.p:=s.p+result.n*s.rad;
+  result.rad2:=s.rad2;
+  result.id:=LightID;
+}
+  
+END;
+
+
 procedure SceneRecordList.AddScene(Scene:SceneRecord);
 begin
   if MaxIndex<MaxSceneList then begin
@@ -336,11 +376,30 @@ begin
   tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170+eps),ZeroVec,CreateVec(0,0,0)       ,DIFF) );//Front
   tempL.add( SphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
   tempL.add( SphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
-//  tempL.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
-  tempL.Add( RectAngleClass.Create( CreateVec(10,0,30),CreateVec(40,35,60),ZeroVec,CreateVec(0.4,0.8,0.6),SPEC) );//Rect Mirror
+  tempL.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
+//  tempL.Add( RectAngleClass.Create( CreateVec(10,0,30),CreateVec(40,35,60),ZeroVec,CreateVec(0.4,0.8,0.6),SPEC) );//Rect Mirror
   tempL.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
 //  tempL.add( RectAngleClass.Create(CreateVec(60,0,70),CreateVec(90,35,100),ZeroVec,CreateVec(1,1,1)*0.999,REFR) );Glass
   tempL.add( RectAngleClass.Create(CreateVec(48,68,78),CreateVec(52,72,82), CreateVec(4,4,4)*100,   ZeroVec,  DIFF) );//Ligth
+
+  SRL[MaxIndex].mdl:=tempL;
+  SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);
+
+  //-------------Debug Scene sc13-------------
+  Inc(MaxIndex);
+  SRL[MaxIndex].SceneName:='13-RectDebug';
+  tempL:=TList.Create;
+  tempL.add( SphereClass.Create(1e5, CreateVec( 1e5+1,40.8,81.6),  ZeroVec,CreateVec(0.75,0.25,0.25),DIFF) );//Left
+  tempL.add( SphereClass.Create(1e5, CreateVec(-1e5+99,40.8,81.6), ZeroVec,CreateVec(0.25,0.25,0.75),DIFF) );//Right
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8, 1e5),      ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Back
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,40.8,-1e5+170+eps),ZeroVec,CreateVec(0,0,0)       ,DIFF) );//Front
+  tempL.add( SphereClass.Create(1e5, CreateVec(50, 1e5, 81.6),     ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Bottomm
+  tempL.add( SphereClass.Create(1e5, CreateVec(50,-1e5+81.6,81.6), ZeroVec,CreateVec(0.75,0.75,0.75),DIFF) );//Top
+//  tempL.add( SphereClass.Create(16.5,CreateVec(27,16.5,47),        ZeroVec,CreateVec(1,1,1)*0.999,   SPEC) );//Mirror
+//  tempL.add( SphereClass.Create(16.5,CreateVec(73,16.5,88),        ZeroVec,CreateVec(1,1,1)*0.999,   REFR) );//Glass
+//  tempL.add( SphereClass.Create(600,CreateVec(50,681.6-0.27,81.6), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
+  tempL.add( RectClass.Create(XZ,40,60,70,90,CreateVec(50,70,80), CreateVec(4,4,4),   ZeroVec,  DIFF) );//Ligth
+//  tempL.add( RectAngleClass.Create(CreateVec(48,68,78),CreateVec(52,72,82), CreateVec(4,4,4)*100,   ZeroVec,  DIFF) );//Ligth
 
   SRL[MaxIndex].mdl:=tempL;
   SRL[MaxIndex].Cam.Setup(CreateVec(50,52,295.6),CreateVec(0,-0.042612,-1),w,h,0.5135,140);

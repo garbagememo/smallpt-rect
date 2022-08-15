@@ -6,20 +6,20 @@ INTERFACE
 
 uses SysUtils,Classes,uVect,uModel,uScene,Math;
 
-type 
+type
 
   TFluxClass=class
     mdl:TList;
     cam:CameraRecord;
     function Intersect(const r:RayRecord;var t:real; var id:integer):boolean;
     function Radiance(r : RayRecord;Depth:integer ):VecRecord;Virtual;
-  end;                
+  end;
   TNEEFluxClass=class(TFluxClass)
     function Radiance(r : RayRecord;Depth:integer ):VecRecord;OverRide;
-  end;                
+  end;
   TLoopFluxClass=class(TFluxClass)
     function Radiance(r : RayRecord;Depth:integer ):VecRecord;OverRide;
-  end;                
+  end;
 
 IMPLEMENTATION
 
@@ -61,13 +61,13 @@ begin
   if VecDot(n,r.d)<0 then nl:=n else nl:=n*-1;
   if (f.x>f.y)and(f.x>f.z) then
     p:=f.x
-  else if f.y>f.z then 
+  else if f.y>f.z then
     p:=f.y
   else
     p:=f.z;
    if (depth>5) then begin
-    if random<p then 
-      f:=f/p 
+    if random<p then
+      f:=f/p
     else begin
       result:=obj.e;
       exit;
@@ -84,7 +84,7 @@ begin
     REFR:begin
       RefRay:=CreateRay(x,r.d-n*2*(n*r.d) );
       into:= (n*nl>0);
-      nc:=1;nt:=1.5; if into then nnt:=nc/nt else nnt:=nt/nc; ddn:=r.d*nl; 
+      nc:=1;nt:=1.5; if into then nnt:=nc/nt else nnt:=nt/nc; ddn:=r.d*nl;
       cos2t:=1-nnt*nnt*(1-ddn*ddn);
       if cos2t<0 then begin   // Total internal reflection
         result:=obj.e + VecMul(f,radiance(RefRay,depth));
