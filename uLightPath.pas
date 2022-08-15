@@ -6,9 +6,9 @@ unit uLightPath;
 interface
 uses SysUtils,Classes,uVect,uModel,uScene,uFlux,Math;
 
-const 
+const
  LightPathMax=5;
-type 
+type
   LightPathRecord=record
     LPMax:integer;
     Ary:array[0..LightPathMax] of VertexRecord;
@@ -24,7 +24,7 @@ type
   end;
   TLightPathFluxClass=class(TFluxClass)
     LPList:LightPathList;
-    procedure GetLigthPath;
+    procedure GetLightPath;
     function Radiance(r:RayRecord;depth:integer):VecRecord;OverRide;
   end;
 
@@ -57,7 +57,7 @@ begin
   Ary[LMax]:=LP;
 end;
 
-procedure TLightPathFluxClass.GetLigthPath;
+procedure TLightPathFluxClass.GetLightPath;
 var
   LP:LightPathRecord;
   tVert,cV:VertexRecord;
@@ -94,9 +94,9 @@ begin
         nrd:=n*r.d;
         if nrd<0 then nl:=n else nl:=n*-1;
         cV.p:=x;cV.n:=nl;cV.id:=id;
-        if (f.x>f.y)and(f.x>f.z) then 
+        if (f.x>f.y)and(f.x>f.z) then
           p:=f.x
-        else if f.y>f.z then 
+        else if f.y>f.z then
           p:=f.y
         else
           p:=f.z;
@@ -105,24 +105,13 @@ begin
         cf:=VecMul(cf,f);
         case obj.refl of
           DIFF:begin
-           d:=VecSphereRef(nl,uvw);
-{                 
-            r1:=M_2PI*random;r2:=random;r2s:=sqrt(r2);
-            w:=nl;
-            if abs(w.x)>0.01 then u:=VecNorm(CreateVec(0,1,0)/w) else u:=VecNorm(CreateVec(1,0,0)/w);
-            v:=w/u;
-            sincos(r1,ss,cc);
-            u:=u*(cc*r2s);v:=v*(ss*r2s);w:=w*(sqrt(1-r2));
-            d:=VecNorm( VecAdd3(u,v,w) );
-}
+            d:=VecSphereRef(nl,uvw);
             r:=CreateRay(x,d)
           end;(*DIFF*)
           SPEC:begin
-//            tv:=n*2*nrd ;tv:=r.d-tv;
             r:=CreateRay(x,(r.d-(n*2*nrd) ) );
           end;(*SPEC*)
           REFR:begin
-//            tv:=n*2*nrd ;tv:=r.d-tv;
             RefRay:=CreateRay(x,(r.d-(n*2*nrd) ) );
             into:= (n*nl>0);
             nc:=1;nt:=1.5; if into then nnt:=nc/nt else nnt:=nt/nc; ddn:=r.d*nl;
@@ -152,7 +141,8 @@ begin
           m:=ModelClass(Scene.mdl[tVert.id]);
           sw:=r.d;
           ts:=sw*cV.n;if ts<0 then ts:=-ts;
-          OMEGA:=m.GetLightOMEGA(x)*ts;
+          OMEGA:=m.GetLightOMEGA(tVert,x)*ts;
+//writeln('ts=',ts:8:2,' OMEGA=',OMEGA:8:2);
 {
           sw:=r.d;
           tr:=VecSQR(SphereClass(Scene.mdl[tVert.id]).p-x);
@@ -182,6 +172,7 @@ begin
   end;(*obj毎*)
 end;
 
+
 function TLightPathFluxClass.Radiance(r:RayRecord;depth:integer):VecRecord;
 var
   id,i,j,tid:integer;
@@ -193,18 +184,18 @@ var
   nc,nt,nnt,ddn,cos2t,q,a,b,c,R0,Re,RP,Tr,TP:real;
   tDir:VecRecord;
   EL,sw,su,sv,l,tw,tu,tv:VecRecord;
-  cos_a_max,eps1,eps2,eps2s,cos_a,sin_a,phi,omega:real;
+  cos_a_max,eps1,eps2,eps2s,cos_a,sin_a,phi,OMEGA:real;
   cl,cf:VecRecord;
   E:integer;
-  LPRec:LightPathRecord;
   tVert:VertexRecord;
   uvw:uvwVecRecord;
   function GetLightPathEvent:VecRecord;
   var
+    LPRec:LightPathRecord;
     i,j:integer;
     tRay:RayRecord;
-    OMEGA,ts:real;
-    s:ModelClass;    
+    t,ts,LPOmega:real;
+    s:ModelClass;
   begin
     result:=ZeroVec;tid:=id;
     for i:=0 to LPList.LMax do begin
@@ -216,32 +207,34 @@ var
         sw:=VecNorm(tVert.p-x);
         tRay.d:=sw;tRay.o:=x;
         if sw*nl<0 then continue;//裏側につきぬけないように
-        if Scene.intersect(tRay,t,id)=false then continue;
+        if Scene.intersect(tRay,t,id)=false then begin
+          write('t=',t:8:2);write('交点は');VecWriteln(tRay.o+tRay.d*t);
+          continue;
+        end;
         if id<>tVert.id then CONTINUE;//影がある?
-
         ts:=sw*tVert.n;
         if ts<0 then ts:=-ts;//球の表裏で変わるので・・・・
+        LPOmega:=s.GetVertexOMEGA(tVert,x);
+        result:=result+VecMul(f,(tVert.cf*ts*LPOmega) );
+        {
+                 tr:=VecSQR(s.p-x);//ここが怖いところ。
+                 tr:=tVert.rad2/tr;
 
-        OMEGA:=s.GetVertexOMEGA(tVert,x);
-        result:=result+VecMul(f,(tVert.cf*ts*OMEGA) );
-{        
-        tr:=VecSQR(s.p-x);//ここが怖いところ。
-        tr:=tVert.rad2/tr;
-        
-        if tr>1 then begin
-          result:=result+VecMul(f,tVert.cf*ts );
-        end
-        else begin
-          cos_a_max := sqrt(1-tr );
-          omega := 2*PI*(1-cos_a_max);
-          result:=result + VecMul(f,(tVert.cf*ts*omega))*M_1_PI;// 1/pi for brdf
-        end;
-}
-      end;
+                 if tr>1 then begin
+                 result:=result+VecMul(f,tVert.cf*ts );
+                 end
+                 else begin
+
+                 cos_a_max := sqrt(1-tr );
+                 omega := 2*PI*(1-cos_a_max);
+                 result:=result + VecMul(f,(tVert.cf*ts*omega))*M_1_PI;// 1/pi for brdf
+                 end;
+        }
+      end;(*for*)
     end;
   end;
 begin
-  GetLigthPath;//////LPL
+  GetLightPath;//////LPL
 //writeln(' DebugY=',DebugY,' DebugX=',DebugX);
   depth:=0;
   id:=0;cl:=ZeroVec;cf:=CreateVec(1,1,1);E:=1;
@@ -270,7 +263,7 @@ begin
     cf:=VecMul(cf,f);
     case obj.refl of
       DIFF:begin
-        d:=VecSphereRef(nl,uvw);             
+        d:=VecSphereRef(nl,uvw);
 {
         r1:=M_2PI*random;r2:=random;r2s:=sqrt(r2);
         w:=nl;

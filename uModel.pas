@@ -41,11 +41,10 @@ type
     function intersect(const r:RayRecord):real;virtual;abstract;
     function GetNorm(x:VecRecord):VecRecord;virtual;abstract;
     function GetLightPath(const x:VecRecord):VecRecord;virtual;abstract;
-    function GetVertexLightPath(const x:VecRecord):VecRecord;virtual;abstract;
     function omega_1_pi(const l:VecRecord):real;virtual;abstract;//半球に占める立法角の割合
     function DeepCopy:ModelClass;virtual;abstract;
     function CreateLight(id:integer;o:VecRecord):VertexRecord;virtual;abstract;
-    function GetLightOMEGA(x:VecRecord):real;virtual;abstract;
+    function GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;virtual;abstract;
     function GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;virtual;abstract;
   end;
 
@@ -58,10 +57,9 @@ type
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
     function GetLightPath(const x:VecRecord):VecRecord;override;
-    function GetVertexLightPath(const x:VecRecord):VecRecord;override;
     function omega_1_pi(const l:VecRecord):real;override;
     function CreateLight(id:integer;o:VecRecord):VertexRecord;override;
-    function GetLightOMEGA(x:VecRecord):real;override;
+    function GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;override;
     function GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;override;
   end;
 
@@ -74,9 +72,10 @@ type
     function intersect(const r:RayRecord):real;override;
     function GetNorm(x:VecRecord):VecRecord;override;
     function GetLightPath(const x:VecRecord):VecRecord;override;
-    function GetVertexLightPath(const x:VecRecord):VecRecord;override;
     function omega_1_pi(const l:VecRecord):real;override;
     function CreateLight(id:integer;o:VecRecord):VertexRecord;override;
+    function GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;override;
+    function GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;override;
   end;
 
   RectAngleClass=class(ModelClass)
@@ -93,7 +92,8 @@ type
     function GetLightPath(const x:VecRecord):VecRecord;override;
     function omega_1_pi(const l:VecRecord):real;override;
     function CreateLight(id:integer;o:VecRecord):VertexRecord;override;
-    function GetVertexLightPath(const x:VecRecord):VecRecord;override;
+    function GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;override;
+    function GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;override;
   end;
 
   RotateRecAngleClass=class(RectAngleClass)
@@ -282,11 +282,6 @@ begin
   end;
 end;
 
-function SphereClass.GetVertexLightPath(const x:VecRecord):VecRecord;
-begin
-  tanR:=rad2/( VecSQR(p-x) );
-end;
-
 function SphereClass.omega_1_pi(const l:VecRecord):real;
 begin
   if tanR>1 then begin
@@ -298,11 +293,12 @@ begin
   end;
 end;
 
-function SphereClass.GetLightOMEGA(x:VecRecord):real;
+function SphereClass.GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;
 var
   tr:real;
 begin
-  tr:=rad2/(VecSQR(p-x));//これはtVertで指定されているのでpで良い
+  tr:=vert.rad2/(VecSQR(vert.p-x));
+//  tr:=rad2/(VecSQR(p-x));//これはtVertで指定されているのでpで良い
   if tr>1 then
     result:=1
   else begin
@@ -314,8 +310,8 @@ function SphereClass.GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;
 var
   tr:real;
 begin
-  tr:=VecSQR(p-x);//ここが怖いところ。
-  tr:=Vert.rad2/tr;
+  tr:=Vert.rad2/VecSQR(Vert.p-x);//ここが怖いところ。LightOMEGAと向きが逆な罠
+//  tr:=rad2/(VecSQR(p-x));//上下のどっちかを生かすと長方形の絵が変わるのが怖すぎ
   if tr>1 then 
     result:=1
   else
@@ -326,11 +322,11 @@ constructor RectClass.Create(RA_:RectAxisType;H1_,H2_,V1_,V2_:real;p_,e_,c_:VecR
 begin
   RA:=RA_;H1:=H1_;H2:=H2_;V1:=V1_;V2:=V2_;h:=H2-H1;w:=V2-V1;
   case RA of
-    XY:begin p_.x:=H1; p_.y:=V1; hv:=CreateVec(H2-H1,0,0);wv:=CreateVec(0,V2-V1,0)*(-1);end;
-    XZ:begin p_.x:=H1; p_.z:=V1; hv:=CreateVec(H2-H1,0,0);wv:=CreateVec(0,0,V2-V1)*(-1);end;
-    YZ:begin p_.y:=H1; p_.z:=V1; hv:=CreateVec(0,H2-H1,0);wv:=CreateVec(0,0,V2-V1)*(-1);end;
+    XY:begin p_.x:=H1; p_.y:=V1; hv:=CreateVec(H2-H1,0,0);wv:=CreateVec(0,V2-V1,0);end;
+    XZ:begin p_.x:=H1; p_.z:=V1; hv:=CreateVec(H2-H1,0,0);wv:=CreateVec(0,0,V2-V1);end;
+    YZ:begin p_.y:=H1; p_.z:=V1; hv:=CreateVec(0,H2-H1,0);wv:=CreateVec(0,0,v2-v1);end;
   end;
-  nl:=VecNorm(VecCross(hv,wv));
+  nl:=VecNorm(VecCross(hv,wv))*-1;
   area:=w*h;
 //  writeln('Area=',Area:5:0,' w:h=',w:4:0,':',h:4:0);
   inherited create(p_,e_,c_,refl_);
@@ -388,9 +384,9 @@ begin
   result.p:=p+hv*random+wv*random;
   result.id:=id;
   result.cf:=e;
-  
+  result.rad2:=Area;
    //RectAngle時にうまく動かないのでコメントアウトするしか・・??
-  if random>0.5 then result.n:=result.n*-1;
+//  if random>0.5 then result.n:=result.n*-1;
 end;
 
 function RectClass.GetLightPath(const x:VecRecord):VecRecord;
@@ -408,15 +404,34 @@ begin
   lp:=VecNorm(r-x);
   result:=lp;
 end;
-function RectClass.GetVertexLightPath(const x:VecRecord):VecRecord;
-begin
-  result:=GetLightPath(x);
-end;
 
 function RectClass.omega_1_pi(const l:VecRecord):real;
 begin
   tempR:=l*GetNorm(l);
   if tempR<0 then tempR:=-tempR;
+  result:=tempR*Area/(pi*dist);
+end;
+
+function RectClass.GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;
+begin
+  dist:=VecSQR(Vert.p-x);
+  lp:=VecNorm(Vert.p-x);
+  tempR:=lp*GetNorm(lp);if tempR<0 then tempR:=-tempR;
+  result:=tempR*Area/(pi*dist);
+{
+  writeln('dist=',dist:8:2,' tempR=',tempR:8:2,' Area=',Area:8:2,' OMEGA=',result);
+  write('r=');VecWriteln(r);
+  write('x=');VecWriteln(x);
+}
+end;
+
+function RectClass.GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;
+var
+  r:VecRecord;
+begin
+  dist:=VecSQR(Vert.p-x);
+  lp:=VecNorm(Vert.p-x);
+  tempR:=lp*GetNorm(lp);if tempR<0 then tempR:=-tempR;
   result:=tempR*Area/(pi*dist);
 end;
 
@@ -481,36 +496,51 @@ begin
   RAary[i].GetLightPath(x);RAary[i+2].GetLightPath(x);RAary[i+4].GetLightPath(x);
   result:=RAary[NeeID].lp;
 end;
-function RectAngleClass.GetVertexLightPath(const x:VecRecord):VecRecord;
-var
-  i:integer;
-begin
-  NeeID:=LPid;//これがかっこ悪いが・・・
-  if (NeeID mod 2)=0 then i:=0 else i:=1;
-  RAary[i].GetLightPath(x);RAary[i+2].GetLightPath(x);RAary[i+4].GetLightPath(x);
-  result:=RAary[NeeID].lp;
-end;  
+
 function RectAngleClass.omega_1_pi(const l:VecRecord):real;
 var
   d1,d2,d3:integer;
   tP:real;
 begin
-{
+
   case RAary[NeeID].RA of
     XY:tP:=XAreaP;
     XZ:tP:=yAreaP;
-    YZ:tP:=XAreaP;
+    YZ:tP:=ZAreaP;
   end;
-  result:=RAary[NeeID].omega_1_pi/tP;
-}
+  result:=RAary[NeeID].omega_1_pi(l)/tP;
 
+{
   //厳密手順な場合はこちら。光線を3面求める必要があるので効率は落ちるが・・・
   case RAary[NeeID].RA of
     XY:result:=RAary[NeeID  ].omega_1_pi(l)*XAreaP+RAary[NeeID+2].omega_1_pi(l)*YAreaP+RAary[NeeID+4].omega_1_pi(l)*ZAreaP;
     XZ:result:=RAary[NeeID-2].omega_1_pi(l)*XAreaP+RAary[NeeID  ].omega_1_pi(l)*YAreaP+RAary[NeeID+2].omega_1_pi(l)*ZAreaP;
     YZ:result:=RAary[NeeID-4].omega_1_pi(l)*XAreaP+RAary[NeeID-2].omega_1_pi(l)*YAreaP+RAary[NeeID  ].omega_1_pi(l)*ZAreaP;
   end;(*case*)
+NeeIDのときの数値の出し方怪しい気がする
+}
 end;
+
+function RectAngleClass.GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;
+var
+  i:integer;
+  tp:Real;
+begin
+  {本来見える3面全部取るべきだが現状よく添字のだ仕方がわからんので}
+  case RAary[LPid].RA of
+    XY:tP:=ZAreaP;
+    XZ:tP:=YAreaP;
+    YZ:tP:=XAreaP;
+  end;
+  RAary[LPid].dist:=VecSQR(vert.p-x);
+  result:=RAary[LPid].omega_1_pi(vert.p-x)/tP;
+end;
+  
+function RectAngleClass.GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;
+begin
+  result:=GetLightOMEGA(vert,x);
+end;
+
 
 function RectAngleClass.intersect(const r:RayRecord):real;
 var
