@@ -527,13 +527,8 @@ var
   tp:Real;
 begin
   {本来見える3面全部取るべきだが現状よく添字のだ仕方がわからんので}
-  case RAary[LPid].RA of
-    XY:tP:=ZAreaP;
-    XZ:tP:=YAreaP;
-    YZ:tP:=XAreaP;
-  end;
   RAary[LPid].dist:=VecSQR(vert.p-x);
-  result:=RAary[LPid].omega_1_pi(vert.p-x)/tP;
+  result:=RAary[LPid].GetLightOMEGA(vert,x);
 end;
   
 function RectAngleClass.GetVertexOMEGA(const vert:VertexRecord;x:VecRecord):real;
