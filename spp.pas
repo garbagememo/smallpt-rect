@@ -131,7 +131,7 @@ begin
   RT.mdl:=SRList.DeepCopyModel(FluxOpt.ModelID);
   RT.cam:=SRList.SRL[FluxOpt.ModelID].cam;
 
-  writeln('Model of Scene =',Scene.SceneName);
+  writeln('Model of Scene =',SRList.SRL[FluxOpt.ModelID].SceneName);
 
 //  if FluxOpt.AlgolID=4 then begin
 //    TLightPathFluxClass(Rt).LPList.SetScene(Rt.Scene)
