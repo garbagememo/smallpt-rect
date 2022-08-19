@@ -17,7 +17,6 @@ const
 type
 
   VertexRecord=record
-    isActive:boolean;(*当面Sphere以外実装できないので・・・*)
     cf:VecRecord;
     p,n:VecRecord;
     rad2:real;
@@ -297,8 +296,8 @@ function SphereClass.GetLightOMEGA(const vert:VertexRecord;x:VecRecord):real;
 var
   tr:real;
 begin
-//  tr:=vert.rad2/(VecSQR(vert.p-x));
-  tr:=rad2/(VecSQR(p-x));//これはtVertで指定されているのでpで良い
+  tr:=vert.rad2/(VecSQR(vert.p-x));
+//  tr:=rad2/(VecSQR(p-x));//これはtVertで指定されているのでpで良い
   if tr>1 then
     result:=1
   else begin

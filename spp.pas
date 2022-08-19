@@ -74,16 +74,16 @@ begin
            ArgInt:=StrToInt(OptArg);
            FluxOpt.AlgolID:=ArgInt;
            case ArgInt of
-           1 : begin
+           0 : begin
                  writeln('Render=Orignal')
                end;
-           2 : begin
+           1 : begin
                  writeln('Render=NEE');
                end;
-           3 : begin
+           2 : begin
                  writeln('Render=Non Loop');
                end;
-           4:begin
+           3:begin
                writeln('Render=LightPath');
            end;
            else FluxOpt.AlgolID:=1;
@@ -106,7 +106,7 @@ begin
          end;
     '?': begin
            writeln(' -m [Model ID] Rendering Model');
-           writeln(' -a [Render Algrithm] r1=Orignal  r2=Next Event  r3=No Loop r4=Light Path');
+           writeln(' -a [Render Algrithm] a0=Orignal  a1=Next Event  a2=No Loop a3=Light Path');
            writeln(' -o [finename] output filename');
            writeln(' -s [samps] sampling count');
            writeln(' -w [width] screen width pixel');
@@ -120,10 +120,10 @@ begin
   BMPClass:=BMPIOClass.Create(FluxOpt.w,FluxOpt.h);
 
   case FluxOpt.AlgolID of
-  1:RT:=TFluxClass.Create;
-  2:RT:=TNEEFluxClass.Create;
-  3:RT:=TLoopFluxClass.Create;
-  4:RT:=TLightPathFluxClass.Create;
+  0:RT:=TFluxClass.Create;
+  1:RT:=TNEEFluxClass.Create;
+  2:RT:=TLoopFluxClass.Create;
+  3:RT:=TLightPathFluxClass.Create;
   else Rt:=TFluxClass.Create;
   end;
 
