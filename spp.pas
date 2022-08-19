@@ -28,10 +28,10 @@ type
     end
     else begin
       AlgolStr:='Org';
-      if AlgolID=1 then AlgolStr:='ORG';
-      if AlgolID=2 then AlgolStr:='NEE';
-      if AlgolID=3 then AlgolStr:='Loop';
-      if AlgolID=4 then AlgolStr:='LP';
+      if AlgolID=0 then AlgolStr:='ORG';
+      if AlgolID=1 then AlgolStr:='NEE';
+      if AlgolID=2 then AlgolStr:='Loop';
+      if AlgolID=3 then AlgolStr:='LP';
       result:='M'+IntToStr(ModelID)+AlgolStr+DefaultOutFileName;
     end;
   end;
